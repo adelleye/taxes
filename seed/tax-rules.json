@@ -1,0 +1,179 @@
+[
+  {
+    "id": "RULE_NON_REVENUE_INFLOWS",
+    "title": "Possible non-revenue inflow",
+    "taxArea": "CIT",
+    "severity": "suggestion",
+    "triggerDescription": "Credit transaction appears to be director funding, loan, inter-account transfer, refund, or reversal rather than sales.",
+    "trigger": {
+      "kind": "transactionCategory",
+      "categories": ["director_funding", "reversal"],
+      "amountSide": "credit"
+    },
+    "evidenceRequired": ["confirmation of source", "loan/agreement note if loan", "director/shareholder funding note if capital"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "classification_review",
+      "basis": "Classify non-sales inflows separately from taxable revenue review."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_UNCATEGORIZED_EXPENSE",
+    "title": "Uncategorized business expense",
+    "taxArea": "CIT",
+    "severity": "error",
+    "triggerDescription": "Debit transaction remains uncategorized after deterministic classification or user review.",
+    "trigger": {
+      "kind": "transactionCategory",
+      "categories": ["uncategorized"],
+      "amountSide": "debit"
+    },
+    "evidenceRequired": ["expense description", "supplier invoice or receipt", "business purpose note"],
+    "estimatedImpact": {
+      "method": "percentageOfDebit",
+      "rate": 0.3,
+      "estimateType": "deduction_support_risk",
+      "basis": "Material uncategorized expenses may need support before CIT review."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_WHT_CREDIT_CANDIDATE",
+    "title": "Possible withholding tax credit",
+    "taxArea": "WHT",
+    "severity": "suggestion",
+    "triggerDescription": "Customer payment appears net of WHT or description mentions WHT.",
+    "trigger": {
+      "kind": "descriptionKeyword",
+      "keywords": ["WHT", "WITHHOLDING"],
+      "amountSide": "credit"
+    },
+    "evidenceRequired": ["invoice", "payment advice", "WHT credit note/certificate"],
+    "estimatedImpact": {
+      "method": "netOfWhtCredit",
+      "rate": 0.05,
+      "estimateType": "potential_credit",
+      "basis": "Estimate assumes the receipt may be net of a 5% WHT deduction."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_VAT_INPUT_CANDIDATE",
+    "title": "Possible input VAT support needed",
+    "taxArea": "VAT",
+    "severity": "warning",
+    "triggerDescription": "Business expense may contain VAT but no valid VAT invoice is linked.",
+    "trigger": {
+      "kind": "missingEvidenceForCategories",
+      "categories": ["operating_expense", "capital_asset"],
+      "amountSide": "debit",
+      "acceptableEvidenceStatuses": ["available", "uploaded"],
+      "minimumAmount": 1
+    },
+    "evidenceRequired": ["valid VAT invoice with supplier tax ID, VAT amount, date, invoice number"],
+    "estimatedImpact": {
+      "method": "vatFractionFromGross",
+      "rate": 0.075,
+      "estimateType": "potential_credit",
+      "basis": "Estimate uses 7.5% VAT fraction from gross expense amount where VAT evidence may exist."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_CAPITAL_ASSET_CANDIDATE",
+    "title": "Possible capital asset",
+    "taxArea": "CIT",
+    "severity": "warning",
+    "triggerDescription": "Expense appears to be equipment, laptop, generator, vehicle, machinery, or other asset.",
+    "trigger": {
+      "kind": "transactionCategory",
+      "categories": ["capital_asset"],
+      "amountSide": "debit"
+    },
+    "evidenceRequired": ["asset invoice", "business-use confirmation", "asset register entry"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "classification_review",
+      "basis": "Review whether the item should be tracked as an asset rather than a routine expense."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_PAYE_RISK",
+    "title": "Payroll/PAYE risk",
+    "taxArea": "PAYE",
+    "severity": "warning",
+    "triggerDescription": "Recurring salary-like payments detected.",
+    "trigger": {
+      "kind": "transactionCategory",
+      "categories": ["payroll"],
+      "amountSide": "debit"
+    },
+    "evidenceRequired": ["payroll schedule", "PAYE remittance evidence", "employee list"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "evidence_review",
+      "basis": "Payroll transactions require PAYE support before filing review."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_MISSING_EVIDENCE_MATERIAL_EXPENSE",
+    "title": "Missing evidence on material expense",
+    "taxArea": "CIT",
+    "severity": "error",
+    "triggerDescription": "Material debit transaction has no available or uploaded evidence.",
+    "trigger": {
+      "kind": "missingEvidenceForCategories",
+      "categories": ["operating_expense", "payroll", "capital_asset"],
+      "amountSide": "debit",
+      "acceptableEvidenceStatuses": ["available", "uploaded", "not_applicable"],
+      "minimumAmount": 1000000
+    },
+    "evidenceRequired": ["supplier invoice, payroll schedule, or other primary evidence", "business purpose note"],
+    "estimatedImpact": {
+      "method": "percentageOfDebit",
+      "rate": 0.3,
+      "estimateType": "deduction_support_risk",
+      "basis": "Estimate flags support risk on material expenses before CIT review."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_DUPLICATE_REVERSAL_CANDIDATE",
+    "title": "Possible duplicate or reversal pair",
+    "taxArea": "Bookkeeping",
+    "severity": "warning",
+    "triggerDescription": "Same-day equal debit and credit pair appears to be an error and reversal.",
+    "trigger": {
+      "kind": "duplicateReversalPair",
+      "sameDay": true
+    },
+    "evidenceRequired": ["bank narration trail", "operator note confirming reversal treatment"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "classification_review",
+      "basis": "Reversal pairs should be excluded from revenue and expense summaries where appropriate."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_STANDARD_COMPANY_SCOPE",
+    "title": "Standard company scope check",
+    "taxArea": "CIT",
+    "severity": "suggestion",
+    "triggerDescription": "Turnover band is within the standard-company review scope for this workbench.",
+    "trigger": {
+      "kind": "businessProfile",
+      "turnoverBands": ["NGN_300M_1B"]
+    },
+    "evidenceRequired": ["management accounts", "turnover schedule"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "scope_review",
+      "basis": "Confirms the case should remain in the standard-company review workflow."
+    },
+    "enabled": true
+  }
+]
