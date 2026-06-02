@@ -4,3 +4,5 @@ tsconfig.tsbuildinfo
 .DS_Store
 coverage/
 .claude/settings.local.json
+docs/
+AGENTS.md
