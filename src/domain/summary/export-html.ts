@@ -70,7 +70,7 @@ export function renderTaxPackHtml(taxPack: TaxPack): string {
       <tr>
         <th>Date</th>
         <th>Description</th>
-        <th>Counterparty</th>
+        <th>Customer / supplier</th>
         <th>Debit</th>
         <th>Credit</th>
         <th>Category</th>
@@ -83,7 +83,7 @@ export function renderTaxPackHtml(taxPack: TaxPack): string {
           (transaction) => `<tr>
         <td>${escapeHtml(transaction.date)}</td>
         <td>${escapeHtml(transaction.description)}</td>
-        <td>${escapeHtml(transaction.counterparty)}</td>
+        <td>${escapeHtml(formatCounterparty(transaction.counterparty))}</td>
         <td>${transaction.debit ? formatMoney(transaction.debit) : ""}</td>
         <td>${transaction.credit ? formatMoney(transaction.credit) : ""}</td>
         <td>${escapeHtml(transaction.category)}</td>
@@ -106,6 +106,10 @@ function renderSuggestionRow(suggestion: TaxSuggestion): string {
     <td>${formatMoney(suggestion.estimatedTaxImpact.amount)}<br /><span class="meta">${escapeHtml(suggestion.estimatedTaxImpact.estimateType)}</span></td>
     <td>${escapeHtml(suggestion.status)} / ${escapeHtml(suggestion.userDecision)}</td>
   </tr>`;
+}
+
+function formatCounterparty(counterparty: string): string {
+  return counterparty.trim().toLowerCase() === "unknown" ? "Not shown by bank" : counterparty;
 }
 
 function escapeHtml(value: string): string {

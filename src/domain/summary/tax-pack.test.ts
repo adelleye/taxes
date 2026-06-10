@@ -3,9 +3,9 @@ import { buildTaxPack, summarizeTaxPack } from "@/domain/summary/tax-pack";
 import { buildReviewedSeedFixture } from "@/domain/test-fixtures";
 
 describe("tax-pack summary", () => {
-  it("calculates deterministic seeded totals", () => {
-    const { transactions, review } = buildReviewedSeedFixture();
-    const summary = summarizeTaxPack(transactions, [
+  it("calculates deterministic seeded totals under NTA 2025 standard-company rates", () => {
+    const { taxCase, transactions, review } = buildReviewedSeedFixture();
+    const summary = summarizeTaxPack(transactions, taxCase.businessProfile, [
       ...review.errors,
       ...review.warnings,
       ...review.suggestions
@@ -21,10 +21,38 @@ describe("tax-pack summary", () => {
     expect(summary.capitalAssetCandidateCount).toBe(1);
     expect(summary.missingEvidenceCount).toBe(3);
     expect(summary.projectedTaxPosition.taxableProfitEstimate).toBe(17150000);
+    expect(summary.projectedTaxPosition.companySize).toBe("standard");
+    // 30% CIT
     expect(summary.projectedTaxPosition.estimatedCit).toBe(5145000);
+    // 4% Development Levy
+    expect(summary.projectedTaxPosition.estimatedDevelopmentLevy).toBe(686000);
     expect(summary.projectedTaxPosition.potentialWhtCredits).toBe(500000);
-    expect(summary.projectedTaxPosition.netAmount).toBe(4645000);
+    // 5,145,000 + 686,000 - 500,000
+    expect(summary.projectedTaxPosition.netAmount).toBe(5331000);
     expect(summary.projectedTaxPosition.direction).toBe("payable");
+  });
+
+  it("does not use the counterparty field to estimate tax", () => {
+    const { taxCase, transactions, review } = buildReviewedSeedFixture();
+    const anonymousTransactions = transactions.map((transaction) => ({
+      ...transaction,
+      counterparty: "Unknown",
+      raw: {
+        ...transaction.raw,
+        counterparty: "Unknown"
+      }
+    }));
+    const summary = summarizeTaxPack(anonymousTransactions, taxCase.businessProfile, [
+      ...review.errors,
+      ...review.warnings,
+      ...review.suggestions
+    ]);
+
+    expect(summary.projectedTaxPosition.taxableProfitEstimate).toBe(17150000);
+    expect(summary.projectedTaxPosition.estimatedCit).toBe(5145000);
+    expect(summary.projectedTaxPosition.estimatedDevelopmentLevy).toBe(686000);
+    expect(summary.projectedTaxPosition.potentialWhtCredits).toBe(500000);
+    expect(summary.projectedTaxPosition.netAmount).toBe(5331000);
   });
 
   it("builds exportable tax-pack JSON with the reviewed case", () => {

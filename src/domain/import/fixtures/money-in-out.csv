@@ -1,0 +1,4 @@
+Date,Description,Money Out,Money In,Balance,Counterparty
+01/05/2026,CUSTOMER PAYMENT,,"5,000.00","5,000.00",Customer A
+02/05/2026,OFFICE RENT,"1,500.00",,"3,500.00",Landlord
+03/05/2026,DIESEL SUPPLY,500.00,,"3,000.00",Vendor

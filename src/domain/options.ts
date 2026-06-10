@@ -40,9 +40,26 @@ export const TURNOVER_LABELS: Record<TurnoverBand, string> = {
   NGN_1B_PLUS: "NGN 1b+"
 };
 
+/**
+ * Plain-language explanations for users without a finance background.
+ * Each one answers "when do I pick this?" — not what an accountant calls it.
+ */
+export const CATEGORY_DESCRIPTIONS: Record<TransactionCategory, string> = {
+  revenue: "Money customers paid you for what you sell",
+  director_funding: "The owner/director put their own money in — not sales, not taxed",
+  operating_expense: "Day-to-day costs: rent, fees, software, contractors, fuel",
+  payroll: "Salaries and pensions for your employees",
+  capital_asset: "Things you'll use for years: laptops, vehicles, machines",
+  owner_drawings: "The owner took money out for personal use — not a business cost",
+  reversal: "A failed or returned transfer that came back",
+  tax_payment: "Your own taxes paid to FIRS/LIRS (CIT, VAT, PAYE remittance)",
+  uncategorized: "We couldn't tell what this is — please pick one"
+};
+
 export const CATEGORY_OPTIONS = TRANSACTION_CATEGORIES.map((value) => ({
   value,
-  label: CATEGORY_LABELS[value]
+  label: CATEGORY_LABELS[value],
+  description: CATEGORY_DESCRIPTIONS[value]
 }));
 
 export const EVIDENCE_STATUS_OPTIONS = EVIDENCE_STATUSES.map((value) => ({

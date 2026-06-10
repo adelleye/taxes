@@ -14,7 +14,6 @@ import { useId, useMemo, useState } from "react";
 import type {
   ReviewOutput,
   ReviewSeverity,
-  SourceFact,
   TaxSuggestion,
   Transaction,
   UserDecision
@@ -59,19 +58,44 @@ export function ReviewResults({
   onDecisionChange
 }: ReviewResultsProps) {
   const [activeFilter, setActiveFilter] = useState<ReviewFilter>("all");
+  const transactionById = useMemo(() => {
+    const byId = new Map<string, Transaction>();
+    for (const transaction of transactions) {
+      byId.set(transaction.id, transaction);
+    }
+    return byId;
+  }, [transactions]);
   const groups = useMemo(
     () => [
-      { value: "error" as const, severity: "error" as const, title: "Must fix", items: review.errors },
-      { value: "warning" as const, severity: "warning" as const, title: "Worth a look", items: review.warnings },
-      { value: "suggestion" as const, severity: "suggestion" as const, title: "Savings", items: review.suggestions }
+      {
+        value: "error" as const,
+        severity: "error" as const,
+        title: "Must fix",
+        items: review.errors,
+        activeCount: countOpenItems(review.errors)
+      },
+      {
+        value: "warning" as const,
+        severity: "warning" as const,
+        title: "Worth a look",
+        items: review.warnings,
+        activeCount: countOpenItems(review.warnings)
+      },
+      {
+        value: "suggestion" as const,
+        severity: "suggestion" as const,
+        title: "Savings",
+        items: review.suggestions,
+        activeCount: countOpenItems(review.suggestions)
+      }
     ],
     [review.errors, review.suggestions, review.warnings]
   );
   const counts = {
-    all: review.errors.length + review.warnings.length + review.suggestions.length,
-    error: review.errors.length,
-    warning: review.warnings.length,
-    suggestion: review.suggestions.length
+    all: String(groups.reduce((total, group) => total + group.items.length, 0)),
+    error: formatCompactCount(groups[0].activeCount, groups[0].items.length),
+    warning: formatCompactCount(groups[1].activeCount, groups[1].items.length),
+    suggestion: formatCompactCount(groups[2].activeCount, groups[2].items.length)
   };
   const visibleGroups =
     activeFilter === "all" ? groups : groups.filter((group) => group.value === activeFilter);
@@ -101,7 +125,8 @@ export function ReviewResults({
             severity={group.severity}
             title={group.title}
             items={group.items}
-            transactions={transactions}
+            activeCount={group.activeCount}
+            transactionById={transactionById}
             onFocusTransaction={onFocusTransaction}
             onDecisionChange={onDecisionChange}
           />
@@ -115,14 +140,16 @@ function SuggestionGroup({
   severity,
   title,
   items,
-  transactions,
+  activeCount,
+  transactionById,
   onFocusTransaction,
   onDecisionChange
 }: {
   severity: ReviewSeverity;
   title: string;
   items: TaxSuggestion[];
-  transactions: Transaction[];
+  activeCount: number;
+  transactionById: ReadonlyMap<string, Transaction>;
   onFocusTransaction?: (transactionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
 }) {
@@ -130,13 +157,13 @@ function SuggestionGroup({
     <section className="flag-group">
       <div className="group-label">
         <span className={`gl-dot ${SEVERITY_META[severity].dot}`} />
-        {title} · {items.length}
+        {title} · {formatGroupCount(activeCount, items.length)}
       </div>
       {items.map((item) => (
         <SuggestionRow
           key={item.id}
           item={item}
-          transactions={transactions}
+          transactionById={transactionById}
           onFocusTransaction={onFocusTransaction}
           onDecisionChange={onDecisionChange}
         />
@@ -145,20 +172,40 @@ function SuggestionGroup({
   );
 }
 
+function countOpenItems(items: TaxSuggestion[]): number {
+  let count = 0;
+
+  for (const item of items) {
+    if (item.status === "open") {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+function formatGroupCount(activeCount: number, totalCount: number): string {
+  return activeCount === totalCount ? String(totalCount) : `${activeCount} open / ${totalCount} total`;
+}
+
+function formatCompactCount(activeCount: number, totalCount: number): string {
+  return activeCount === totalCount ? String(totalCount) : `${activeCount}/${totalCount}`;
+}
+
 function SuggestionRow({
   item,
-  transactions,
+  transactionById,
   onFocusTransaction,
   onDecisionChange
 }: {
   item: TaxSuggestion;
-  transactions: Transaction[];
+  transactionById: ReadonlyMap<string, Transaction>;
   onFocusTransaction?: (transactionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
 }) {
   const meta = SEVERITY_META[item.severity];
   const BadgeIcon = meta.icon;
-  const sourceTransaction = findSourceTransaction(item, transactions);
+  const sourceTransaction = findSourceTransaction(item, transactionById);
   const amount = sourceTransaction
     ? sourceTransaction.credit > 0
       ? sourceTransaction.credit
@@ -315,13 +362,18 @@ function WhyFlagged({ item }: { item: TaxSuggestion }) {
 
 function findSourceTransaction(
   item: TaxSuggestion,
-  transactions: Transaction[]
+  transactionById: ReadonlyMap<string, Transaction>
 ): Transaction | undefined {
-  const transactionIds = new Set(
-    item.sourceFacts
-      .map((fact: SourceFact) => fact.transactionId)
-      .filter((transactionId): transactionId is string => Boolean(transactionId))
-  );
+  for (const fact of item.sourceFacts) {
+    if (!fact.transactionId) {
+      continue;
+    }
 
-  return transactions.find((transaction) => transactionIds.has(transaction.id));
+    const transaction = transactionById.get(fact.transactionId);
+    if (transaction) {
+      return transaction;
+    }
+  }
+
+  return undefined;
 }

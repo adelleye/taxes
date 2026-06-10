@@ -3,11 +3,13 @@
 import { Select as BaseSelect } from "@base-ui-components/react/select";
 import clsx from "clsx";
 import { Check, ChevronDown } from "lucide-react";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 export interface SelectOption<T extends string> {
   value: T;
   label: string;
+  /** One plain-language line under the label, for users without a finance background. */
+  description?: string;
 }
 
 interface SelectProps<T extends string> {
@@ -41,6 +43,8 @@ export function Select<T extends string>({
   className,
   startSlot
 }: SelectProps<T>) {
+  const labelByValue = useMemo(() => new Map(items.map((item) => [item.value, item.label])), [items]);
+
   return (
     <BaseSelect.Root
       items={items as Array<{ value: T; label: string }>}
@@ -51,7 +55,7 @@ export function Select<T extends string>({
       <BaseSelect.Trigger id={id} aria-label={ariaLabel} className={clsx("select-trigger", className)}>
         {startSlot}
         <BaseSelect.Value className="select-value">
-          {(selected: T) => items.find((item) => item.value === selected)?.label ?? placeholder ?? ""}
+          {(selected: T) => labelByValue.get(selected) ?? placeholder ?? ""}
         </BaseSelect.Value>
         <BaseSelect.Icon className="select-chevron">
           <ChevronDown size={16} aria-hidden="true" />
@@ -74,7 +78,12 @@ export function Select<T extends string>({
                       <Check size={14} />
                     </BaseSelect.ItemIndicator>
                   </span>
-                  <BaseSelect.ItemText className="select-item-text">{item.label}</BaseSelect.ItemText>
+                  <BaseSelect.ItemText className="select-item-text">
+                    {item.label}
+                    {item.description ? (
+                      <span className="select-item-desc">{item.description}</span>
+                    ) : null}
+                  </BaseSelect.ItemText>
                 </BaseSelect.Item>
               ))}
             </BaseSelect.List>

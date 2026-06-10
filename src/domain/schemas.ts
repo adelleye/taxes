@@ -17,20 +17,27 @@ export const ImportedStatementRowSchema = z.object({
   debit: AmountNumberSchema,
   credit: AmountNumberSchema,
   balance: z.number().finite(),
-  sourceAccount: z.string().min(1)
+  sourceAccount: z.string().min(1),
+  reference: z.string().optional(),
+  sourceBank: z.string().optional(),
+  originalRowNumber: z.number().int().positive().optional(),
+  rawSource: z.record(z.string(), z.string()).optional()
 });
 
+// Free-text fields allow empty strings so a draft case can exist before the
+// company form is filled in. Profile completeness is enforced at export time.
 export const BusinessProfileSchema = z.object({
-  legalName: z.string().min(1),
-  rcNumber: z.string().min(1),
-  taxId: z.string().min(1),
-  state: z.string().min(1),
+  legalName: z.string(),
+  rcNumber: z.string(),
+  taxId: z.string(),
+  state: z.string(),
   entityType: z.literal("limited_company"),
   accountingYearEnd: z.string().regex(/^\d{2}-\d{2}$/),
   turnoverBand: z.enum(TURNOVER_BANDS),
+  fixedAssetsUnder250m: z.boolean(),
   vatRegistered: z.boolean(),
   hasEmployees: z.boolean(),
-  industry: z.string().min(1)
+  industry: z.string()
 });
 
 export const TaxCaseSchema = z.object({
@@ -45,6 +52,7 @@ export const TaxCaseSchema = z.object({
 export const TransactionSchema = ImportedStatementRowSchema.extend({
   id: z.string().min(1),
   caseId: z.string().min(1),
+  importId: z.string().min(1),
   raw: ImportedStatementRowSchema,
   category: z.enum(TRANSACTION_CATEGORIES),
   confidence: z.number().min(0).max(1),
@@ -166,11 +174,14 @@ export const TaxPackSummarySchema = z.object({
   transactionCount: z.number().int().nonnegative(),
   projectedTaxPosition: z.object({
     taxableProfitEstimate: AmountNumberSchema,
+    companySize: z.enum(["small", "standard"]),
     estimatedCit: AmountNumberSchema,
+    estimatedDevelopmentLevy: AmountNumberSchema,
     potentialWhtCredits: AmountNumberSchema,
     netAmount: z.number().finite(),
     direction: z.enum(["payable", "credit", "neutral"]),
     rate: z.number().finite().nonnegative(),
+    developmentLevyRate: z.number().finite().nonnegative(),
     basis: z.string().min(1)
   })
 });

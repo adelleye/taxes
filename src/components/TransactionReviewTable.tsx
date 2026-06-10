@@ -1,8 +1,10 @@
 "use client";
 
-import { Search, Upload, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/Button";
+import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { StatementImportActions } from "@/components/StatementImportActions";
+import { StatementManager } from "@/components/StatementManager";
+import { InfoHint } from "@/components/ui/InfoHint";
 import { Select, type SelectOption } from "@/components/ui/Select";
 import type { EvidenceStatus, Transaction, TransactionCategory } from "@/domain/types";
 import { CATEGORY_OPTIONS, EVIDENCE_STATUS_OPTIONS } from "@/domain/options";
@@ -18,13 +20,26 @@ const EVIDENCE_FILTER_OPTIONS: ReadonlyArray<SelectOption<EvidenceStatus | "all"
   ...EVIDENCE_STATUS_OPTIONS
 ];
 
+const TRANSACTION_PAGE_SIZE = 50;
+const MATERIAL_EVIDENCE_CATEGORIES = new Set<TransactionCategory>([
+  "operating_expense",
+  "payroll",
+  "capital_asset"
+]);
+// Below this, nobody attaches an invoice (₦50 NIP fees, stamp duty) — a
+// "Review" nag on hundreds of micro-debits buries the rows that matter.
+const REVIEW_TAG_MINIMUM_DEBIT = 10000;
+
 interface TransactionReviewTableProps {
   transactions: Transaction[];
   focusedTransactionId?: string | null;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onUpdate: (transactionId: string, patch: Partial<Transaction>) => void;
-  onLoadSample?: () => void;
+  onUploadCsv: () => void;
+  onRemoveStatement: (importId: string) => void;
+  onClearAll: () => void;
+  canUploadStatement?: boolean;
   isLoading?: boolean;
 }
 
@@ -34,36 +49,83 @@ export function TransactionReviewTable({
   searchQuery,
   onSearchChange,
   onUpdate,
-  onLoadSample,
+  onUploadCsv,
+  onRemoveStatement,
+  onClearAll,
+  canUploadStatement = true,
   isLoading = false
 }: TransactionReviewTableProps) {
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceStatus | "all">("all");
+  const [pageIndex, setPageIndex] = useState(0);
   const effectiveSearchQuery = searchQuery ?? localSearchQuery;
-  const reviewedCount = transactions.filter((transaction) => transaction.reviewedByUser).length;
+  const normalizedSearchQuery = effectiveSearchQuery.trim().toLowerCase();
+  const { reviewedCount, visibleTransactionIndexById, visibleTransactions } = useMemo(() => {
+    let reviewed = 0;
+    const visible: Transaction[] = [];
+    const indexById = new Map<string, number>();
 
-  const visibleTransactions = useMemo(
-    () =>
-      transactions.filter((transaction) =>
-        matchesFilters(transaction, effectiveSearchQuery, categoryFilter, evidenceFilter)
-      ),
-    [categoryFilter, effectiveSearchQuery, evidenceFilter, transactions]
+    for (const transaction of transactions) {
+      if (transaction.reviewedByUser) {
+        reviewed += 1;
+      }
+
+      if (matchesFilters(transaction, normalizedSearchQuery, categoryFilter, evidenceFilter)) {
+        indexById.set(transaction.id, visible.length);
+        visible.push(transaction);
+      }
+    }
+
+    return {
+      reviewedCount: reviewed,
+      visibleTransactionIndexById: indexById,
+      visibleTransactions: visible
+    };
+  }, [categoryFilter, evidenceFilter, normalizedSearchQuery, transactions]);
+  const pageCount = Math.max(1, Math.ceil(visibleTransactions.length / TRANSACTION_PAGE_SIZE));
+  const currentPageIndex = Math.min(pageIndex, pageCount - 1);
+  const pagedTransactions = useMemo(() => {
+    const start = currentPageIndex * TRANSACTION_PAGE_SIZE;
+    return visibleTransactions.slice(start, start + TRANSACTION_PAGE_SIZE);
+  }, [currentPageIndex, visibleTransactions]);
+  const showingStart =
+    visibleTransactions.length === 0 ? 0 : currentPageIndex * TRANSACTION_PAGE_SIZE + 1;
+  const showingEnd = Math.min(
+    visibleTransactions.length,
+    (currentPageIndex + 1) * TRANSACTION_PAGE_SIZE
   );
 
+  // Jump to a newly focused transaction ONCE, then let go. Without the
+  // handled-ref, this effect re-fires on every page change and drags the
+  // user back to the focused row's page — "Next" becomes unclickable.
+  const lastHandledFocusRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!focusedTransactionId) {
+    if (!focusedTransactionId || focusedTransactionId === lastHandledFocusRef.current) {
       return;
     }
 
+    const targetIndex = visibleTransactionIndexById.get(focusedTransactionId);
+    if (targetIndex === undefined) {
+      return;
+    }
+
+    const nextPageIndex = Math.floor(targetIndex / TRANSACTION_PAGE_SIZE);
+    if (nextPageIndex !== currentPageIndex) {
+      window.setTimeout(() => setPageIndex(nextPageIndex), 0);
+      return;
+    }
+
+    lastHandledFocusRef.current = focusedTransactionId;
     window.setTimeout(() => {
       document
         .getElementById(`transaction-${focusedTransactionId}`)
         ?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     }, 0);
-  }, [focusedTransactionId, visibleTransactions.length]);
+  }, [currentPageIndex, focusedTransactionId, visibleTransactionIndexById]);
 
   const updateSearchQuery = (nextQuery: string) => {
+    setPageIndex(0);
     if (onSearchChange) {
       onSearchChange(nextQuery);
       return;
@@ -72,23 +134,33 @@ export function TransactionReviewTable({
     setLocalSearchQuery(nextQuery);
   };
 
+  const updateCategoryFilter = (nextCategory: TransactionCategory | "all") => {
+    setPageIndex(0);
+    setCategoryFilter(nextCategory);
+  };
+
+  const updateEvidenceFilter = (nextEvidenceStatus: EvidenceStatus | "all") => {
+    setPageIndex(0);
+    setEvidenceFilter(nextEvidenceStatus);
+  };
+
   if (transactions.length === 0) {
     return (
       <div className="panel-pad">
         <div className="empty-state">
           <div>
-            <strong>No transactions loaded</strong>
-            <p>Load the sample statement to import the seed bank rows and start the review.</p>
-            {onLoadSample ? (
-              <Button
-                variant="primary"
-                icon={<Upload size={16} aria-hidden="true" />}
-                onClick={onLoadSample}
-                disabled={isLoading}
-                style={{ marginTop: 18 }}
-              >
-                {isLoading ? "Loading statement…" : "Load sample statement"}
-              </Button>
+            <strong>{canUploadStatement ? "No transactions loaded" : "Complete company profile first"}</strong>
+            <p>
+              {canUploadStatement
+                ? "Upload a bank-statement CSV to start. You can add more statements afterwards."
+                : "Enter the registered name, CAC/RC number and TIN before uploading a statement."}
+            </p>
+            {canUploadStatement ? (
+              <StatementImportActions
+                className="empty-import-actions"
+                isLoading={isLoading}
+                onUploadCsv={onUploadCsv}
+              />
             ) : null}
           </div>
         </div>
@@ -133,20 +205,29 @@ export function TransactionReviewTable({
             className="mini-select"
             ariaLabel="Filter by transaction category"
             value={categoryFilter}
-            onValueChange={setCategoryFilter}
+            onValueChange={updateCategoryFilter}
             items={CATEGORY_FILTER_OPTIONS}
           />
           <Select
             className="mini-select"
             ariaLabel="Filter by evidence status"
             value={evidenceFilter}
-            onValueChange={setEvidenceFilter}
+            onValueChange={updateEvidenceFilter}
             items={EVIDENCE_FILTER_OPTIONS}
           />
           <span className="count-pill num">
             {visibleTransactions.length} / {transactions.length}
           </span>
         </div>
+      </div>
+      <div className="statement-tools">
+        <StatementManager
+          transactions={transactions}
+          isLoading={isLoading}
+          onUploadCsv={onUploadCsv}
+          onRemoveStatement={onRemoveStatement}
+          onClearAll={onClearAll}
+        />
       </div>
 
       {visibleTransactions.length === 0 ? (
@@ -165,7 +246,17 @@ export function TransactionReviewTable({
               <tr>
                 <th>Date</th>
                 <th>Description</th>
-                <th>Counterparty</th>
+                <th>
+                  <span className="th-help">
+                    Customer / supplier
+                    <InfoHint label="What customer or supplier means" title="Customer or supplier">
+                      <p>
+                        The other person or business on this bank line. Some banks do not provide it
+                        separately, so we use the narration instead.
+                      </p>
+                    </InfoHint>
+                  </span>
+                </th>
                 <th className="right">Amount</th>
                 <th>Category</th>
                 <th>Evidence</th>
@@ -173,7 +264,7 @@ export function TransactionReviewTable({
               </tr>
             </thead>
             <tbody>
-              {visibleTransactions.map((transaction) => (
+              {pagedTransactions.map((transaction) => (
                 <tr
                   id={`transaction-${transaction.id}`}
                   key={transaction.id}
@@ -186,7 +277,9 @@ export function TransactionReviewTable({
                     </div>
                     <div className="t-ref">{transaction.sourceAccount}</div>
                   </td>
-                  <td>{transaction.counterparty}</td>
+                  <td className={isUnknownCounterparty(transaction.counterparty) ? "muted-cell" : undefined}>
+                    {formatCounterparty(transaction.counterparty)}
+                  </td>
                   <td className={transaction.debit > 0 ? "t-amt neg num" : "t-amt num"}>
                     {formatMoney(transaction.credit > 0 ? transaction.credit : -transaction.debit)}
                   </td>
@@ -228,6 +321,37 @@ export function TransactionReviewTable({
         </div>
       )}
 
+      {pageCount > 1 ? (
+        <div className="table-pager" aria-label="Transaction pages">
+          <span className="pager-range num">
+            Showing {showingStart}-{showingEnd} of {visibleTransactions.length}
+          </span>
+          <div className="pager-actions">
+            <button
+              type="button"
+              className="pager-btn"
+              disabled={currentPageIndex === 0}
+              onClick={() => setPageIndex(Math.max(0, currentPageIndex - 1))}
+            >
+              <ChevronLeft size={16} aria-hidden="true" />
+              Previous
+            </button>
+            <span className="pager-page num">
+              {currentPageIndex + 1} / {pageCount}
+            </span>
+            <button
+              type="button"
+              className="pager-btn"
+              disabled={currentPageIndex >= pageCount - 1}
+              onClick={() => setPageIndex(Math.min(pageCount - 1, currentPageIndex + 1))}
+            >
+              Next
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="legend">
         <span>
           <span className="lz" style={{ background: "var(--cyan)" }} />
@@ -243,7 +367,8 @@ export function TransactionReviewTable({
         </span>
       </div>
       <p className="table-foot">
-        Sample import source: /seed/sample-statement.csv · Runtime review uses JSON rules only.
+        Imports normalize CSV bank statements into date, description, debit, credit, balance
+        and source-account fields. Checks use configured tax rules.
       </p>
     </>
   );
@@ -254,13 +379,13 @@ type RowSeverity = "err" | "warn" | null;
 function rowSeverity(transaction: Transaction): RowSeverity {
   if (
     transaction.debit >= 1000000 &&
-    ["operating_expense", "payroll", "capital_asset"].includes(transaction.category) &&
+    MATERIAL_EVIDENCE_CATEGORIES.has(transaction.category) &&
     transaction.evidenceStatus === "none"
   ) {
     return "err";
   }
 
-  if (transaction.evidenceStatus === "none" && transaction.debit > 0) {
+  if (transaction.evidenceStatus === "none" && transaction.debit >= REVIEW_TAG_MINIMUM_DEBIT) {
     return "warn";
   }
 
@@ -339,9 +464,17 @@ function Flag({ transaction }: { transaction: Transaction }) {
   return <span className="pct num">{Math.round(transaction.confidence * 100)}%</span>;
 }
 
+function formatCounterparty(counterparty: string): string {
+  return isUnknownCounterparty(counterparty) ? "Not shown by bank" : counterparty;
+}
+
+function isUnknownCounterparty(counterparty: string): boolean {
+  return counterparty.trim().toLowerCase() === "unknown";
+}
+
 function matchesFilters(
   transaction: Transaction,
-  searchQuery: string,
+  normalizedQuery: string,
   categoryFilter: TransactionCategory | "all",
   evidenceFilter: EvidenceStatus | "all"
 ) {
@@ -353,7 +486,6 @@ function matchesFilters(
     return false;
   }
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
   if (!normalizedQuery) {
     return true;
   }

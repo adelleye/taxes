@@ -1,10 +1,10 @@
 [
   {
     "id": "RULE_NON_REVENUE_INFLOWS",
-    "title": "Possible non-revenue inflow",
+    "title": "Money in that might not be sales",
     "taxArea": "CIT",
     "severity": "suggestion",
-    "triggerDescription": "Credit transaction appears to be director funding, loan, inter-account transfer, refund, or reversal rather than sales.",
+    "triggerDescription": "This money in looks like the director funding the business, a loan, or a returned transfer — not a customer paying you. If that's right, it should not be taxed as revenue, which lowers your bill.",
     "trigger": {
       "kind": "transactionCategory",
       "categories": ["director_funding", "reversal"],
@@ -14,16 +14,16 @@
     "estimatedImpact": {
       "method": "none",
       "estimateType": "classification_review",
-      "basis": "Classify non-sales inflows separately from taxable revenue review."
+      "basis": "Non-sales inflows (director funding, loans, refunds) are not taxable revenue. Confirming them keeps your taxable profit honest — and lower."
     },
     "enabled": true
   },
   {
     "id": "RULE_UNCATEGORIZED_EXPENSE",
-    "title": "Uncategorized business expense",
+    "title": "We can't tell what this payment was for",
     "taxArea": "CIT",
     "severity": "error",
-    "triggerDescription": "Debit transaction remains uncategorized after deterministic classification or user review.",
+    "triggerDescription": "Money went out and nothing tells us what for. Pick a category: if it's a real business cost it reduces your taxable profit, but while it stays unknown it cannot be deducted.",
     "trigger": {
       "kind": "transactionCategory",
       "categories": ["uncategorized"],
@@ -34,16 +34,16 @@
       "method": "percentageOfDebit",
       "rate": 0.3,
       "estimateType": "deduction_support_risk",
-      "basis": "Material uncategorized expenses may need support before CIT review."
+      "basis": "Categorizing this as a genuine business cost is worth up to ~30% of the amount in tax saved. Unexplained payments save nothing."
     },
     "enabled": true
   },
   {
     "id": "RULE_WHT_CREDIT_CANDIDATE",
-    "title": "Possible withholding tax credit",
+    "title": "Tax was already deducted from this payment",
     "taxArea": "WHT",
     "severity": "suggestion",
-    "triggerDescription": "Customer payment appears net of WHT or description mentions WHT.",
+    "triggerDescription": "Your customer held back withholding tax from this payment and sent it to the tax office in your name. That money counts against your own tax bill — but only if you collect the credit note and claim it.",
     "trigger": {
       "kind": "descriptionKeyword",
       "keywords": ["WHT", "WITHHOLDING"],
@@ -54,57 +54,62 @@
       "method": "netOfWhtCredit",
       "rate": 0.05,
       "estimateType": "potential_credit",
-      "basis": "Estimate assumes the receipt may be net of a 5% WHT deduction."
+      "basis": "Assumes the 5% rate for services to Nigerian companies (2024 Withholding Regulations; goods are 2%). Unclaimed WHT is tax paid twice."
     },
     "enabled": true
   },
   {
     "id": "RULE_VAT_INPUT_CANDIDATE",
-    "title": "Possible input VAT support needed",
+    "title": "VAT you may be able to claim back",
     "taxArea": "VAT",
     "severity": "warning",
-    "triggerDescription": "Business expense may contain VAT but no valid VAT invoice is linked.",
+    "triggerDescription": "This purchase likely included 7.5% VAT. With a valid VAT invoice you can recover that money — and since 2026 the law lets you claim it on services and equipment, not just goods.",
     "trigger": {
       "kind": "missingEvidenceForCategories",
       "categories": ["operating_expense", "capital_asset"],
       "amountSide": "debit",
       "acceptableEvidenceStatuses": ["available", "uploaded"],
-      "minimumAmount": 1
+      "minimumAmount": 10000
     },
     "evidenceRequired": ["valid VAT invoice with supplier tax ID, VAT amount, date, invoice number"],
     "estimatedImpact": {
       "method": "vatFractionFromGross",
       "rate": 0.075,
       "estimateType": "potential_credit",
-      "basis": "Estimate uses 7.5% VAT fraction from gross expense amount where VAT evidence may exist."
+      "basis": "Estimate extracts the 7.5% VAT share from the gross amount. The Nigeria Tax Act 2025 widened input-VAT recovery to services and fixed assets — recoverable cash that didn't exist before 2026."
     },
     "enabled": true
   },
   {
     "id": "RULE_CAPITAL_ASSET_CANDIDATE",
-    "title": "Possible capital asset",
+    "title": "Equipment purchase — claim capital allowances",
     "taxArea": "CIT",
     "severity": "warning",
-    "triggerDescription": "Expense appears to be equipment, laptop, generator, vehicle, machinery, or other asset.",
+    "triggerDescription": "This looks like equipment you'll use for years (laptop, generator, vehicle, machinery). You don't deduct it all at once — you claim capital allowances every year, and over time that's worth about a third of the price back in tax.",
     "trigger": {
       "kind": "transactionCategory",
       "categories": ["capital_asset"],
       "amountSide": "debit"
     },
-    "evidenceRequired": ["asset invoice", "business-use confirmation", "asset register entry"],
+    "evidenceRequired": [
+      "VAT-inclusive purchase invoice (VAT charged and paid is a statutory condition for capital allowances under the NTA 2025)",
+      "business-use confirmation",
+      "asset register entry"
+    ],
     "estimatedImpact": {
-      "method": "none",
-      "estimateType": "classification_review",
-      "basis": "Review whether the item should be tracked as an asset rather than a routine expense."
+      "method": "percentageOfDebit",
+      "rate": 0.34,
+      "estimateType": "potential_credit",
+      "basis": "Capital allowances under the NTA 2025 First Schedule write the asset off at 10–25% of cost per year (1% held back until disposal). Fully claimed, that's ~34% of the cost saved in CIT plus Development Levy over the asset's life."
     },
     "enabled": true
   },
   {
     "id": "RULE_PAYE_RISK",
-    "title": "Payroll/PAYE risk",
+    "title": "Salary payments need PAYE records",
     "taxArea": "PAYE",
     "severity": "warning",
-    "triggerDescription": "Recurring salary-like payments detected.",
+    "triggerDescription": "These look like salary payments. Keep the payroll schedule and PAYE remittance receipts — they prove the deduction that lowers your profit, and they keep you clear of payroll penalties.",
     "trigger": {
       "kind": "transactionCategory",
       "categories": ["payroll"],
@@ -114,16 +119,16 @@
     "estimatedImpact": {
       "method": "none",
       "estimateType": "evidence_review",
-      "basis": "Payroll transactions require PAYE support before filing review."
+      "basis": "Payroll is fully deductible, but only PAYE records prove it if the tax office asks."
     },
     "enabled": true
   },
   {
     "id": "RULE_MISSING_EVIDENCE_MATERIAL_EXPENSE",
-    "title": "Missing evidence on material expense",
+    "title": "Big expense with no receipt",
     "taxArea": "CIT",
     "severity": "error",
-    "triggerDescription": "Material debit transaction has no available or uploaded evidence.",
+    "triggerDescription": "Over ₦1m went out with no invoice or receipt attached. Without evidence the tax office can refuse the deduction — and your tax goes up by roughly a third of this amount.",
     "trigger": {
       "kind": "missingEvidenceForCategories",
       "categories": ["operating_expense", "payroll", "capital_asset"],
@@ -136,16 +141,16 @@
       "method": "percentageOfDebit",
       "rate": 0.3,
       "estimateType": "deduction_support_risk",
-      "basis": "Estimate flags support risk on material expenses before CIT review."
+      "basis": "The deduction this expense earns is only as safe as the paperwork behind it."
     },
     "enabled": true
   },
   {
     "id": "RULE_DUPLICATE_REVERSAL_CANDIDATE",
-    "title": "Possible duplicate or reversal pair",
+    "title": "Looks like a failed transfer and its refund",
     "taxArea": "Bookkeeping",
     "severity": "warning",
-    "triggerDescription": "Same-day equal debit and credit pair appears to be an error and reversal.",
+    "triggerDescription": "Equal money out and money in on the same day usually means a transfer failed and bounced back. It isn't income and it isn't a cost — it should sit outside your totals.",
     "trigger": {
       "kind": "duplicateReversalPair",
       "sameDay": true
@@ -154,25 +159,43 @@
     "estimatedImpact": {
       "method": "none",
       "estimateType": "classification_review",
-      "basis": "Reversal pairs should be excluded from revenue and expense summaries where appropriate."
+      "basis": "Counting a bounced transfer as revenue would tax you on money you never earned."
     },
     "enabled": true
   },
   {
     "id": "RULE_STANDARD_COMPANY_SCOPE",
-    "title": "Standard company scope check",
+    "title": "Your rates: 30% company tax + 4% levy",
     "taxArea": "CIT",
     "severity": "suggestion",
-    "triggerDescription": "Turnover band is within the standard-company review scope for this workbench.",
+    "triggerDescription": "Your turnover is above the ₦100m small-company line, so the standard rates apply: 30% company income tax plus the 4% Development Levy on profits. The way to pay less is to make sure every real cost, allowance and credit is captured here.",
     "trigger": {
       "kind": "businessProfile",
-      "turnoverBands": ["NGN_300M_1B"]
+      "turnoverBands": ["NGN_100M_300M", "NGN_300M_1B", "NGN_1B_PLUS"]
     },
     "evidenceRequired": ["management accounts", "turnover schedule"],
     "estimatedImpact": {
       "method": "none",
       "estimateType": "scope_review",
-      "basis": "Confirms the case should remain in the standard-company review workflow."
+      "basis": "The 4% Development Levy replaced the TET, IT, NASENI and Police Trust Fund levies. Groups at ₦50bn+ turnover (or in €750m+ multinational groups) also face a 15% minimum effective tax rate."
+    },
+    "enabled": true
+  },
+  {
+    "id": "RULE_SMALL_COMPANY_RELIEF",
+    "title": "You might qualify for 0% company tax",
+    "taxArea": "CIT",
+    "severity": "suggestion",
+    "triggerDescription": "Your turnover is at or below ₦100m. If your total fixed assets are also ₦250m or less, the law charges you 0% company income tax and no Development Levy — confirm the fixed-assets box in your company profile to apply it.",
+    "trigger": {
+      "kind": "businessProfile",
+      "turnoverBands": ["NGN_0_25M", "NGN_25M_100M"]
+    },
+    "evidenceRequired": ["turnover schedule", "fixed asset register confirming total fixed assets ≤ ₦250m"],
+    "estimatedImpact": {
+      "method": "none",
+      "estimateType": "scope_review",
+      "basis": "Small companies (turnover ≤ ₦100m AND fixed assets ≤ ₦250m) pay 0% CIT, 0% CGT and no Development Levy under the Nigeria Tax Act 2025."
     },
     "enabled": true
   }

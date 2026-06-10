@@ -6,3 +6,6 @@ coverage/
 .claude/settings.local.json
 docs/
 AGENTS.md
+.codex-audit/
+output/
+UNDERSTANDING.md

@@ -11,6 +11,7 @@ export function createSampleTaxCase(now = new Date("2026-01-31T09:00:00.000Z")):
       entityType: "limited_company",
       accountingYearEnd: "12-31",
       turnoverBand: "NGN_300M_1B",
+      fixedAssetsUnder250m: false,
       vatRegistered: true,
       hasEmployees: true,
       industry: "Technology services"

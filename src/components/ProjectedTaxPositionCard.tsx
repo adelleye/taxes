@@ -17,11 +17,13 @@ export function ProjectedTaxPositionCard({ position, hasData = true }: Projected
         : "Estimated tax to set aside";
 
   const note =
-    position.direction === "credit"
-      ? "You may be owed money back."
-      : position.direction === "neutral"
-        ? "Nothing due yet on what’s sorted."
-        : "A guide for what to put aside.";
+    position.companySize === "small"
+      ? "0% small-company rate applied (NTA 2025)."
+      : position.direction === "credit"
+        ? "You may be owed money back."
+        : position.direction === "neutral"
+          ? "No taxable profit yet from the classified rows."
+          : "A guide for what to put aside.";
 
   return (
     <section className="tax-card">
@@ -34,7 +36,9 @@ export function ProjectedTaxPositionCard({ position, hasData = true }: Projected
           side="bottom"
         >
           <p className="info-lead">
-            A rough guide from the transactions you&rsquo;ve sorted so far — not a tax filing or advice.
+            {position.companySize === "small"
+              ? "Your profile meets the Nigeria Tax Act 2025 small-company test (turnover ≤ ₦100m and fixed assets ≤ ₦250m): 0% company income tax and no Development Levy."
+              : "Uses classified transaction totals: revenue credits minus operating expense debits and payroll debits, then standard-company tax under the Nigeria Tax Act 2025. Customer / supplier names do not drive this estimate."}
           </p>
           <dl className="info-breakdown">
             <div>
@@ -46,12 +50,17 @@ export function ProjectedTaxPositionCard({ position, hasData = true }: Projected
               <dd className="num">{formatMoney(position.estimatedCit)}</dd>
             </div>
             <div>
+              <dt>Development levy at {Math.round(position.developmentLevyRate * 100)}%</dt>
+              <dd className="num">{formatMoney(position.estimatedDevelopmentLevy)}</dd>
+            </div>
+            <div>
               <dt>Tax already withheld (WHT)</dt>
               <dd className="num">&minus;{formatMoney(position.potentialWhtCredits)}</dd>
             </div>
           </dl>
           <p className="info-foot">
-            Capital purchases aren&rsquo;t deducted here. Your accountant confirms the final figure.
+            Capital purchases aren&rsquo;t deducted here — capital allowances are claimed in the
+            filing itself. Your accountant confirms the final figure.
           </p>
         </InfoHint>
       </div>

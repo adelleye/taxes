@@ -2,6 +2,7 @@
 
 import { Checkbox } from "@base-ui-components/react/checkbox";
 import { Check } from "lucide-react";
+import { useState } from "react";
 import { Card } from "@/components/Card";
 import { Select } from "@/components/ui/Select";
 import type { BusinessProfile } from "@/domain/types";
@@ -12,7 +13,15 @@ interface CaseSetupPanelProps {
   onProfileChange: (profile: BusinessProfile) => void;
 }
 
+type RequiredProfileField = "legalName" | "rcNumber" | "taxId";
+
 export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps) {
+  const [touched, setTouched] = useState<Record<RequiredProfileField, boolean>>({
+    legalName: false,
+    rcNumber: false,
+    taxId: false
+  });
+
   const updateProfile = <Key extends keyof BusinessProfile>(
     key: Key,
     value: BusinessProfile[Key]
@@ -20,10 +29,14 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
     onProfileChange({ ...profile, [key]: value });
   };
 
+  const markTouched = (field: RequiredProfileField) => {
+    setTouched((current) => ({ ...current, [field]: true }));
+  };
+
   const errors = {
-    legalName: profile.legalName.trim() === "",
-    rcNumber: profile.rcNumber.trim() === "",
-    taxId: profile.taxId.trim() === ""
+    legalName: touched.legalName && profile.legalName.trim() === "",
+    rcNumber: touched.rcNumber && profile.rcNumber.trim() === "",
+    taxId: touched.taxId && profile.taxId.trim() === ""
   };
 
   return (
@@ -39,7 +52,9 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
               className="input"
               value={profile.legalName}
               onChange={(event) => updateProfile("legalName", event.target.value)}
+              onBlur={() => markTouched("legalName")}
               autoComplete="organization"
+              placeholder="Adeleye Operations Limited"
               spellCheck={false}
               required
               aria-invalid={errors.legalName}
@@ -60,7 +75,9 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
               className="input"
               value={profile.rcNumber}
               onChange={(event) => updateProfile("rcNumber", event.target.value)}
+              onBlur={() => markTouched("rcNumber")}
               autoComplete="off"
+              placeholder="RC 2048123"
               spellCheck={false}
               required
               aria-invalid={errors.rcNumber}
@@ -81,7 +98,9 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
               className="input"
               value={profile.taxId}
               onChange={(event) => updateProfile("taxId", event.target.value)}
+              onBlur={() => markTouched("taxId")}
               autoComplete="off"
+              placeholder="TIN 01234567"
               spellCheck={false}
               required
               aria-invalid={errors.taxId}
@@ -103,6 +122,7 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
               value={profile.state}
               onChange={(event) => updateProfile("state", event.target.value)}
               autoComplete="address-level1"
+              placeholder="Lagos"
               spellCheck={false}
             />
           </div>
@@ -116,6 +136,7 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
               value={profile.industry}
               onChange={(event) => updateProfile("industry", event.target.value)}
               autoComplete="off"
+              placeholder="Technology services"
               spellCheck={false}
             />
           </div>
@@ -141,6 +162,11 @@ export function CaseSetupPanel({ profile, onProfileChange }: CaseSetupPanelProps
             label="Has employees"
             checked={profile.hasEmployees}
             onChange={(checked) => updateProfile("hasEmployees", checked)}
+          />
+          <Toggle
+            label="Fixed assets ≤ ₦250m"
+            checked={profile.fixedAssetsUnder250m}
+            onChange={(checked) => updateProfile("fixedAssetsUnder250m", checked)}
           />
         </div>
 

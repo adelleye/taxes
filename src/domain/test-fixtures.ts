@@ -12,7 +12,7 @@ export function loadSeedCsvText(): string {
 
 export function buildReviewedSeedFixture() {
   const taxCase = createSampleTaxCase();
-  const rows = parseBankStatementCsv(loadSeedCsvText());
+  const { rows } = parseBankStatementCsv(loadSeedCsvText());
   const imported = createImportedTransactions(rows, taxCase.id);
   const classifier = new RuleBasedClassifier();
   const transactions = classifier.classifyBatch(imported, taxCase.businessProfile);

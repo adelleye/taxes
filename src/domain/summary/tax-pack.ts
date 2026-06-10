@@ -1,4 +1,5 @@
 import type {
+  BusinessProfile,
   ReviewOutput,
   TaxPack,
   TaxPackSummary,
@@ -6,28 +7,35 @@ import type {
   TaxCase,
   Transaction
 } from "@/domain/types";
-import { estimateProjectedTaxPosition } from "@/domain/summary/tax-position";
+import { estimateProjectedTaxPositionFromStats } from "@/domain/summary/tax-position";
+import {
+  countRule,
+  summarizeSuggestionStats,
+  summarizeTransactionTotals
+} from "@/domain/summary/summary-stats";
 
 export function summarizeTaxPack(
   transactions: Transaction[],
+  profile: BusinessProfile,
   suggestions: TaxSuggestion[] = []
 ): TaxPackSummary {
+  const transactionTotals = summarizeTransactionTotals(transactions);
+  const suggestionStats = summarizeSuggestionStats(suggestions);
+
   return {
-    revenue: sumTransactions(transactions, "revenue", "credit"),
-    operatingExpenses: sumTransactions(transactions, "operating_expense", "debit"),
-    payroll: sumTransactions(transactions, "payroll", "debit"),
-    capitalAssets: sumTransactions(transactions, "capital_asset", "debit"),
-    nonRevenueInflows:
-      sumTransactions(transactions, "director_funding", "credit") +
-      sumTransactions(transactions, "reversal", "credit"),
-    ownerDrawings: sumTransactions(transactions, "owner_drawings", "debit"),
-    vatCandidateCount: countRule(suggestions, "RULE_VAT_INPUT_CANDIDATE"),
-    whtCandidateCount: countRule(suggestions, "RULE_WHT_CREDIT_CANDIDATE"),
-    payrollRiskCount: countRule(suggestions, "RULE_PAYE_RISK"),
-    capitalAssetCandidateCount: countRule(suggestions, "RULE_CAPITAL_ASSET_CANDIDATE"),
-    missingEvidenceCount: countRule(suggestions, "RULE_MISSING_EVIDENCE_MATERIAL_EXPENSE"),
+    revenue: transactionTotals.revenue,
+    operatingExpenses: transactionTotals.operatingExpenses,
+    payroll: transactionTotals.payroll,
+    capitalAssets: transactionTotals.capitalAssets,
+    nonRevenueInflows: transactionTotals.nonRevenueInflows,
+    ownerDrawings: transactionTotals.ownerDrawings,
+    vatCandidateCount: countRule(suggestionStats, "RULE_VAT_INPUT_CANDIDATE"),
+    whtCandidateCount: countRule(suggestionStats, "RULE_WHT_CREDIT_CANDIDATE"),
+    payrollRiskCount: countRule(suggestionStats, "RULE_PAYE_RISK"),
+    capitalAssetCandidateCount: countRule(suggestionStats, "RULE_CAPITAL_ASSET_CANDIDATE"),
+    missingEvidenceCount: countRule(suggestionStats, "RULE_MISSING_EVIDENCE_MATERIAL_EXPENSE"),
     transactionCount: transactions.length,
-    projectedTaxPosition: estimateProjectedTaxPosition(transactions, suggestions)
+    projectedTaxPosition: estimateProjectedTaxPositionFromStats(transactionTotals, suggestionStats, profile)
   };
 }
 
@@ -43,18 +51,4 @@ export function buildTaxPack(
     review,
     exportedAt
   };
-}
-
-function sumTransactions(
-  transactions: Transaction[],
-  category: Transaction["category"],
-  side: "debit" | "credit"
-): number {
-  return transactions
-    .filter((transaction) => transaction.category === category)
-    .reduce((total, transaction) => total + transaction[side], 0);
-}
-
-function countRule(suggestions: TaxSuggestion[], ruleId: string): number {
-  return suggestions.filter((suggestion) => suggestion.ruleId === ruleId).length;
 }

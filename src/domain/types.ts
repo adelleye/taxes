@@ -51,6 +51,12 @@ export interface BusinessProfile {
   entityType: "limited_company";
   accountingYearEnd: string;
   turnoverBand: TurnoverBand;
+  /**
+   * NTA 2025 small-company test is turnover ≤ ₦100m AND total fixed assets
+   * ≤ ₦250m. Defaults to false so an unconfirmed profile is taxed at the
+   * standard rate — we may overestimate, never understate.
+   */
+  fixedAssetsUnder250m: boolean;
   vatRegistered: boolean;
   hasEmployees: boolean;
   industry: string;
@@ -73,11 +79,17 @@ export interface ImportedStatementRow {
   credit: number;
   balance: number;
   sourceAccount: string;
+  reference?: string;
+  sourceBank?: string;
+  originalRowNumber?: number;
+  rawSource?: Record<string, string>;
 }
 
 export interface Transaction extends ImportedStatementRow {
   id: string;
   caseId: string;
+  /** Groups rows that arrived in the same uploaded statement. */
+  importId: string;
   raw: ImportedStatementRow;
   category: TransactionCategory;
   confidence: number;
@@ -203,11 +215,15 @@ export interface TaxPackSummary {
 
 export interface ProjectedTaxPosition {
   taxableProfitEstimate: number;
+  /** NTA 2025 class: small (0% CIT, levy-exempt) or standard (30% + 4%). */
+  companySize: "small" | "standard";
   estimatedCit: number;
+  estimatedDevelopmentLevy: number;
   potentialWhtCredits: number;
   netAmount: number;
   direction: "payable" | "credit" | "neutral";
   rate: number;
+  developmentLevyRate: number;
   basis: string;
 }
 
