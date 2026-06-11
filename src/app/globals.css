@@ -463,9 +463,10 @@ svg.lucide {
   justify-content: center;
 }
 
-.import-actions-compact .btn {
-  padding: 10px 14px;
+.statement-manager-actions .btn {
+  border-radius: 10px;
   font-size: var(--fs-sm);
+  padding: 9px 14px;
 }
 
 .banner-import-actions {
@@ -677,7 +678,7 @@ svg.lucide {
   display: flex;
   justify-content: flex-end;
   border-top: 1px solid var(--line-soft);
-  padding: 0 30px 18px;
+  padding: 14px 30px 18px;
 }
 
 .ts-title {
@@ -1731,28 +1732,31 @@ tbody tr.focused td {
   font-size: var(--fs-sm);
 }
 
-.app-error {
-  margin: 0 30px 14px;
+.app-error,
+.app-notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 20px 30px 0;
   border-radius: 11px;
-  background: var(--flag-wash);
-  color: var(--flag);
   font-size: var(--fs-sm);
   font-weight: 500;
-  padding: 11px 14px;
+  padding: 12px 16px;
+}
+
+.app-error {
+  background: var(--flag-wash);
+  color: var(--flag);
 }
 
 .app-notice {
-  margin: 0 30px 14px;
-  border-radius: 11px;
   background: var(--cyan-wash);
   color: var(--cyan-deep);
-  font-size: var(--fs-sm);
-  font-weight: 500;
-  padding: 11px 14px;
 }
 
 .notice-action {
-  margin-left: 10px;
+  flex: none;
+  margin-left: auto;
   border: 1px solid currentColor;
   border-radius: 99px;
   background: transparent;
@@ -1760,7 +1764,7 @@ tbody tr.focused td {
   font-family: var(--sans);
   font-size: var(--fs-xs);
   font-weight: 600;
-  padding: 2px 11px;
+  padding: 3px 12px;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -1770,7 +1774,7 @@ tbody tr.focused td {
 }
 
 .mapping-card {
-  margin: 0 30px 20px;
+  margin: 14px 30px 20px;
   border: 1px solid var(--line);
   border-radius: 14px;
   background: var(--fill);

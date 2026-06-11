@@ -88,10 +88,17 @@ export function WorkbenchClient() {
   const [isReviewStale, setIsReviewStale] = useState(false);
   const [focusedTransactionId, setFocusedTransactionId] = useState<string | null>(null);
   // Set when "Open transaction" jumps to the table; editing that row scrolls
-  // back to the flag it came from, so fixing a flag never strands the user.
+  // back to the flag it came from — or, since fixing a flag removes its card,
+  // to the nearest flag that survived. flagIds snapshots the card order at
+  // jump time so "nearest" still means something after cards disappear.
   const [reviewJump, setReviewJump] = useState<{
     transactionId: string;
     suggestionId: string;
+    flagIds: string[];
+  } | null>(null);
+  const [pendingReviewReturn, setPendingReviewReturn] = useState<{
+    suggestionId: string;
+    flagIds: string[];
   } | null>(null);
   const [transactionSearch, setTransactionSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -434,21 +441,36 @@ export function WorkbenchClient() {
     }
 
     // Close the loop on a flag-initiated edit: editing the row "Open
-    // transaction" jumped to returns the user to the flag, which by then
-    // shows Resolved. Any other edit means they're working the table now,
-    // so the pending return is dropped rather than yanking them later.
+    // transaction" jumped to returns the user to where that flag was — the
+    // card itself if it's still open, otherwise the nearest remaining one.
+    // Any other edit means they're working the table now, so the pending
+    // return is dropped rather than yanking them later.
     if (reviewJump) {
-      const { transactionId: jumpTransactionId, suggestionId } = reviewJump;
+      const { transactionId: jumpTransactionId, suggestionId, flagIds } = reviewJump;
       setReviewJump(null);
       if (jumpTransactionId === transactionId) {
-        window.setTimeout(() => {
-          const target =
-            document.getElementById(`flag-${suggestionId}`) ?? document.getElementById("review");
-          target?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 0);
+        setPendingReviewReturn({ suggestionId, flagIds });
       }
     }
   };
+
+  // The return scroll must run AFTER the commit that removed the fixed
+  // flag's card — a timeout scheduled in the handler can fire first and
+  // scroll to a card that is about to disappear. An effect can't.
+  useEffect(() => {
+    if (!pendingReviewReturn) {
+      return;
+    }
+
+    const { suggestionId, flagIds } = pendingReviewReturn;
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    setPendingReviewReturn(null);
+    const target =
+      document.getElementById(`flag-${suggestionId}`) ??
+      findNearestRemainingFlag(flagIds, `flag-${suggestionId}`) ??
+      document.getElementById("review");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [pendingReviewReturn]);
 
   const updateProfile = (nextProfile: BusinessProfile) => {
     setProfile(nextProfile);
@@ -501,7 +523,11 @@ export function WorkbenchClient() {
 
   const focusTransaction = (transactionId: string, suggestionId: string) => {
     setFocusedTransactionId(transactionId);
-    setReviewJump({ transactionId, suggestionId });
+    setReviewJump({
+      transactionId,
+      suggestionId,
+      flagIds: Array.from(document.querySelectorAll(".flag[id]"), (flag) => flag.id)
+    });
     setTransactionSearch("");
     window.setTimeout(() => {
       document.getElementById("transactions")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -614,9 +640,11 @@ export function WorkbenchClient() {
             <div className="rm-title">Review results</div>
             <div className="rm-sub num">
               {review
-                ? `${totalReviewItems} flags · ${activeBlockingCount} must fix${
-                    isReviewStale ? " · changes pending rerun" : ""
-                  }`
+                ? `${
+                    totalReviewItems === 0
+                      ? "All flags handled"
+                      : `${totalReviewItems} open flag${totalReviewItems === 1 ? "" : "s"} · ${activeBlockingCount} must fix`
+                  }${isReviewStale ? " · changes pending rerun" : ""}`
                 : "Load a statement to check it for tax issues and opportunities."}
             </div>
           </div>
@@ -811,11 +839,39 @@ function initialMappingFromPreview(preview: ImportPreview): ColumnMapping {
 }
 
 function summarizeReviewMetrics(review: ReviewOutput) {
+  const activeBlockingCount = countOpenReviewItems(review.errors);
+  const activeWarningCount = countOpenReviewItems(review.warnings);
+
   return {
-    activeBlockingCount: countOpenReviewItems(review.errors),
-    activeWarningCount: countOpenReviewItems(review.warnings),
-    totalReviewItems: review.errors.length + review.warnings.length + review.suggestions.length
+    activeBlockingCount,
+    activeWarningCount,
+    totalReviewItems:
+      activeBlockingCount + activeWarningCount + countOpenReviewItems(review.suggestions)
   };
+}
+
+// Walks the jump-time card order outward from where the fixed flag was:
+// first the cards that were below it, then the ones above.
+function findNearestRemainingFlag(flagIds: string[], originId: string): HTMLElement | null {
+  const originIndex = flagIds.indexOf(originId);
+  if (originIndex === -1) {
+    return null;
+  }
+
+  for (let index = originIndex + 1; index < flagIds.length; index += 1) {
+    const flag = document.getElementById(flagIds[index]);
+    if (flag) {
+      return flag;
+    }
+  }
+  for (let index = originIndex - 1; index >= 0; index -= 1) {
+    const flag = document.getElementById(flagIds[index]);
+    if (flag) {
+      return flag;
+    }
+  }
+
+  return null;
 }
 
 function countOpenReviewItems(items: ReviewOutput["errors"]): number {

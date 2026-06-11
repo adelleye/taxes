@@ -66,40 +66,40 @@ export function ReviewResults({
     }
     return byId;
   }, [transactions]);
+  // Handled flags leave the queue: resolved items stay in the review data
+  // (and the exported audit trail) but are not rendered.
   const groups = useMemo(
     () => [
       {
         value: "error" as const,
         severity: "error" as const,
         title: "Must fix",
-        items: review.errors,
-        activeCount: countOpenItems(review.errors)
+        openItems: review.errors.filter((item) => item.status === "open")
       },
       {
         value: "warning" as const,
         severity: "warning" as const,
         title: "Worth a look",
-        items: review.warnings,
-        activeCount: countOpenItems(review.warnings)
+        openItems: review.warnings.filter((item) => item.status === "open")
       },
       {
         value: "suggestion" as const,
         severity: "suggestion" as const,
         title: "Savings",
-        items: review.suggestions,
-        activeCount: countOpenItems(review.suggestions)
+        openItems: review.suggestions.filter((item) => item.status === "open")
       }
     ],
     [review.errors, review.suggestions, review.warnings]
   );
   const counts = {
-    all: String(groups.reduce((total, group) => total + group.items.length, 0)),
-    error: formatCompactCount(groups[0].activeCount, groups[0].items.length),
-    warning: formatCompactCount(groups[1].activeCount, groups[1].items.length),
-    suggestion: formatCompactCount(groups[2].activeCount, groups[2].items.length)
+    all: String(groups.reduce((total, group) => total + group.openItems.length, 0)),
+    error: String(groups[0].openItems.length),
+    warning: String(groups[1].openItems.length),
+    suggestion: String(groups[2].openItems.length)
   };
-  const visibleGroups =
-    activeFilter === "all" ? groups : groups.filter((group) => group.value === activeFilter);
+  const visibleGroups = (
+    activeFilter === "all" ? groups : groups.filter((group) => group.value === activeFilter)
+  ).filter((group) => group.openItems.length > 0);
 
   return (
     <div className="review-results">
@@ -119,19 +119,29 @@ export function ReviewResults({
         ))}
       </div>
 
-      {visibleGroups.map((group) =>
-        group.items.length > 0 ? (
+      {visibleGroups.length === 0 ? (
+        <div className="empty-state">
+          <div>
+            <strong>{activeFilter === "all" ? "All flags handled" : "Nothing open here"}</strong>
+            <p>
+              {activeFilter === "all"
+                ? "Every flag has been fixed or decided. The full trail stays in the exported pack."
+                : "Every flag in this view has been fixed or decided."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        visibleGroups.map((group) => (
           <SuggestionGroup
             key={group.value}
             severity={group.severity}
             title={group.title}
-            items={group.items}
-            activeCount={group.activeCount}
+            items={group.openItems}
             transactionById={transactionById}
             onFocusTransaction={onFocusTransaction}
             onDecisionChange={onDecisionChange}
           />
-        ) : null
+        ))
       )}
     </div>
   );
@@ -141,7 +151,6 @@ function SuggestionGroup({
   severity,
   title,
   items,
-  activeCount,
   transactionById,
   onFocusTransaction,
   onDecisionChange
@@ -149,7 +158,6 @@ function SuggestionGroup({
   severity: ReviewSeverity;
   title: string;
   items: TaxSuggestion[];
-  activeCount: number;
   transactionById: ReadonlyMap<string, Transaction>;
   onFocusTransaction?: (transactionId: string, suggestionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
@@ -158,7 +166,7 @@ function SuggestionGroup({
     <section className="flag-group">
       <div className="group-label">
         <span className={`gl-dot ${SEVERITY_META[severity].dot}`} />
-        {title} · {formatGroupCount(activeCount, items.length)}
+        {title} · {items.length}
       </div>
       {items.map((item) => (
         <SuggestionRow
@@ -171,26 +179,6 @@ function SuggestionGroup({
       ))}
     </section>
   );
-}
-
-function countOpenItems(items: TaxSuggestion[]): number {
-  let count = 0;
-
-  for (const item of items) {
-    if (item.status === "open") {
-      count += 1;
-    }
-  }
-
-  return count;
-}
-
-function formatGroupCount(activeCount: number, totalCount: number): string {
-  return activeCount === totalCount ? String(totalCount) : `${activeCount} open / ${totalCount} total`;
-}
-
-function formatCompactCount(activeCount: number, totalCount: number): string {
-  return activeCount === totalCount ? String(totalCount) : `${activeCount}/${totalCount}`;
 }
 
 function SuggestionRow({
@@ -221,7 +209,7 @@ function SuggestionRow({
             <BadgeIcon />
           </span>
           <div className="flag-head">
-            <div className="flag-kicker">{item.status === "resolved" ? "Resolved" : meta.kicker}</div>
+            <div className="flag-kicker">{meta.kicker}</div>
             <h4>{item.title}</h4>
             <p className="flag-sub">{item.rationale}</p>
           </div>

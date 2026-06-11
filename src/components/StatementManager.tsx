@@ -27,7 +27,9 @@ export function StatementManager({
     <div className="statement-manager">
       <ul className="statement-chips" aria-label="Imported statements">
         {statements.map((statement) => {
-          const label = statement.sourceAccounts.join(", ") || "Statement";
+          // Bullets instead of the bank's asterisk masking: * rides above the
+          // text baseline and makes the chip look misaligned.
+          const label = (statement.sourceAccounts.join(", ") || "Statement").replace(/\*/g, "•");
           return (
             <li
               key={statement.importId}
@@ -52,7 +54,6 @@ export function StatementManager({
         <Button
           type="button"
           variant="primary"
-          className="import-actions-compact"
           icon={<Upload size={16} aria-hidden="true" />}
           disabled={isLoading}
           onClick={onUploadCsv}
