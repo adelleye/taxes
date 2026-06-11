@@ -1367,12 +1367,6 @@ tbody tr.focused td {
   box-shadow: 0 8px 16px -8px var(--cyan);
 }
 
-.sbtn.selected-needs_review {
-  background: var(--warn-wash);
-  border-color: var(--warn-wash);
-  color: var(--warn);
-}
-
 .sbtn.selected-rejected {
   background: var(--flag-wash);
   border-color: #eebab8;

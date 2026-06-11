@@ -29,9 +29,10 @@ const REVIEW_FILTERS: Array<{ value: ReviewFilter; label: string }> = [
   { value: "suggestion", label: "Savings" }
 ];
 
+// "needs_review" exists in the domain (and in saved workspaces) but gets no
+// button: it pinned the flag open with no visible effect, which read as broken.
 const DECISION_ACTIONS: Array<{ value: UserDecision; label: string }> = [
   { value: "accepted", label: "Accept" },
-  { value: "needs_review", label: "Review" },
   { value: "rejected", label: "Reject" }
 ];
 
@@ -47,7 +48,7 @@ const SEVERITY_META: Record<
 interface ReviewResultsProps {
   review: ReviewOutput;
   transactions?: Transaction[];
-  onFocusTransaction?: (transactionId: string) => void;
+  onFocusTransaction?: (transactionId: string, suggestionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
 }
 
@@ -150,7 +151,7 @@ function SuggestionGroup({
   items: TaxSuggestion[];
   activeCount: number;
   transactionById: ReadonlyMap<string, Transaction>;
-  onFocusTransaction?: (transactionId: string) => void;
+  onFocusTransaction?: (transactionId: string, suggestionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
 }) {
   return (
@@ -200,7 +201,7 @@ function SuggestionRow({
 }: {
   item: TaxSuggestion;
   transactionById: ReadonlyMap<string, Transaction>;
-  onFocusTransaction?: (transactionId: string) => void;
+  onFocusTransaction?: (transactionId: string, suggestionId: string) => void;
   onDecisionChange?: (suggestionId: string, userDecision: UserDecision) => void;
 }) {
   const meta = SEVERITY_META[item.severity];
@@ -213,7 +214,7 @@ function SuggestionRow({
     : null;
 
   return (
-    <article className={`flag ${meta.cls}`}>
+    <article className={`flag ${meta.cls}`} id={`flag-${item.id}`}>
       <div className="flag-pad">
         <div className="flag-top">
           <span className="flag-badge" aria-hidden="true">
@@ -282,7 +283,7 @@ function SuggestionRow({
             <button
               type="button"
               className="flink"
-              onClick={() => onFocusTransaction(sourceTransaction.id)}
+              onClick={() => onFocusTransaction(sourceTransaction.id, item.id)}
             >
               Open transaction
               <ArrowRight aria-hidden="true" />

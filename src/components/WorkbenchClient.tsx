@@ -87,6 +87,12 @@ export function WorkbenchClient() {
   const [review, setReview] = useState<ReviewOutput | null>(null);
   const [isReviewStale, setIsReviewStale] = useState(false);
   const [focusedTransactionId, setFocusedTransactionId] = useState<string | null>(null);
+  // Set when "Open transaction" jumps to the table; editing that row scrolls
+  // back to the flag it came from, so fixing a flag never strands the user.
+  const [reviewJump, setReviewJump] = useState<{
+    transactionId: string;
+    suggestionId: string;
+  } | null>(null);
   const [transactionSearch, setTransactionSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -350,6 +356,7 @@ export function WorkbenchClient() {
     setTransactions((current) => current.filter((transaction) => transaction.importId !== importId));
     setReview(null);
     setIsReviewStale(false);
+    setReviewJump(null);
   };
 
   const clearAll = () => {
@@ -362,6 +369,7 @@ export function WorkbenchClient() {
     setReview(null);
     setIsReviewStale(false);
     setFocusedTransactionId(null);
+    setReviewJump(null);
     setTransactionSearch("");
     setNotice(null);
   };
@@ -424,6 +432,22 @@ export function WorkbenchClient() {
     if (review) {
       setIsReviewStale(true);
     }
+
+    // Close the loop on a flag-initiated edit: editing the row "Open
+    // transaction" jumped to returns the user to the flag, which by then
+    // shows Resolved. Any other edit means they're working the table now,
+    // so the pending return is dropped rather than yanking them later.
+    if (reviewJump) {
+      const { transactionId: jumpTransactionId, suggestionId } = reviewJump;
+      setReviewJump(null);
+      if (jumpTransactionId === transactionId) {
+        window.setTimeout(() => {
+          const target =
+            document.getElementById(`flag-${suggestionId}`) ?? document.getElementById("review");
+          target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 0);
+      }
+    }
   };
 
   const updateProfile = (nextProfile: BusinessProfile) => {
@@ -475,8 +499,9 @@ export function WorkbenchClient() {
     setReview(nextReview);
   };
 
-  const focusTransaction = (transactionId: string) => {
+  const focusTransaction = (transactionId: string, suggestionId: string) => {
     setFocusedTransactionId(transactionId);
+    setReviewJump({ transactionId, suggestionId });
     setTransactionSearch("");
     window.setTimeout(() => {
       document.getElementById("transactions")?.scrollIntoView({ behavior: "smooth", block: "start" });
