@@ -180,68 +180,75 @@ export function TransactionReviewTable({
     );
   }
 
+  const isFiltered =
+    normalizedSearchQuery !== "" ||
+    categoryFilter !== "all" ||
+    evidenceFilter !== "all" ||
+    needsEvidenceOnly;
+
   return (
     <>
       <div className="table-head-strip">
-        <div>
-          <div className="ts-title">Bank statement</div>
-          <div className="ts-sub num">
-            {transactions.length} imported transactions · {reviewedCount} user-reviewed
-          </div>
+        <div className="ts-title">Bank statement</div>
+        <div className="ts-sub num">
+          {transactions.length} transaction{transactions.length === 1 ? "" : "s"} · {reviewedCount}{" "}
+          reviewed by you
         </div>
-        <div className="filters">
-          <label className="search">
-            <span className="sr-only">Search transactions</span>
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="text"
-              inputMode="search"
-              value={effectiveSearchQuery}
-              onChange={(event) => updateSearchQuery(event.target.value)}
-              placeholder="Search transactions"
-              autoComplete="off"
-              spellCheck={false}
-            />
-            {effectiveSearchQuery ? (
-              <button
-                className="search-clear"
-                type="button"
-                onClick={() => updateSearchQuery("")}
-                aria-label="Clear transaction search"
-              >
-                <X size={15} aria-hidden="true" />
-              </button>
-            ) : null}
-          </label>
-          <Select
-            className="mini-select"
-            ariaLabel="Filter by transaction category"
-            value={categoryFilter}
-            onValueChange={updateCategoryFilter}
-            items={CATEGORY_FILTER_OPTIONS}
+      </div>
+      <div className="filters">
+        <label className="search">
+          <span className="sr-only">Search transactions</span>
+          <Search size={16} aria-hidden="true" />
+          <input
+            type="text"
+            inputMode="search"
+            value={effectiveSearchQuery}
+            onChange={(event) => updateSearchQuery(event.target.value)}
+            placeholder="Search transactions"
+            autoComplete="off"
+            spellCheck={false}
           />
-          <Select
-            className="mini-select"
-            ariaLabel="Filter by evidence status"
-            value={evidenceFilter}
-            onValueChange={updateEvidenceFilter}
-            items={EVIDENCE_FILTER_OPTIONS}
-          />
-          {needsEvidenceCount > 0 || needsEvidenceOnly ? (
+          {effectiveSearchQuery ? (
             <button
+              className="search-clear"
               type="button"
-              className="filter-toggle"
-              aria-pressed={needsEvidenceOnly}
-              onClick={toggleNeedsEvidenceOnly}
+              onClick={() => updateSearchQuery("")}
+              aria-label="Clear transaction search"
             >
-              <span className="tg" aria-hidden="true" />
-              Needs evidence{needsEvidenceCount > 0 ? ` · ${needsEvidenceCount}` : ""}
+              <X size={15} aria-hidden="true" />
             </button>
           ) : null}
-          <span className="count-pill num">
-            {visibleTransactions.length} / {transactions.length}
+        </label>
+        <Select
+          className="mini-select"
+          ariaLabel="Filter by transaction category"
+          value={categoryFilter}
+          onValueChange={updateCategoryFilter}
+          items={CATEGORY_FILTER_OPTIONS}
+        />
+        <Select
+          className="mini-select"
+          ariaLabel="Filter by evidence status"
+          value={evidenceFilter}
+          onValueChange={updateEvidenceFilter}
+          items={EVIDENCE_FILTER_OPTIONS}
+        />
+        {needsEvidenceCount > 0 || needsEvidenceOnly ? (
+          <button
+            type="button"
+            className="filter-toggle"
+            aria-pressed={needsEvidenceOnly}
+            onClick={toggleNeedsEvidenceOnly}
+          >
+            <span className="tg" aria-hidden="true" />
+            Needs evidence{needsEvidenceCount > 0 ? ` · ${needsEvidenceCount}` : ""}
+          </button>
+        ) : null}
+        {isFiltered ? (
+          <span className="count-pill num" role="status">
+            Showing {visibleTransactions.length} of {transactions.length}
           </span>
-        </div>
+        ) : null}
       </div>
       <div className="statement-tools">
         <StatementManager

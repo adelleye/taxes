@@ -667,12 +667,7 @@ svg.lucide {
 
 /* ============ TRANSACTIONS TABLE ============ */
 .table-head-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 24px 30px 18px;
+  padding: 24px 30px 0;
 }
 
 .statement-tools {
@@ -695,11 +690,14 @@ svg.lucide {
 
 .filters {
   display: flex;
-  flex: 1;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
+  padding: 16px 30px 18px;
+}
+
+.filters .count-pill {
+  margin-left: auto;
 }
 
 .search {
