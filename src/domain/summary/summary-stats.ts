@@ -1,13 +1,9 @@
+import { looksLikeWhtCredit } from "@/domain/transaction-flags";
 import type { TaxSuggestion, Transaction } from "@/domain/types";
-import { includesAnyKeyword } from "@/domain/text-match";
 
 // Services WHT for resident companies under the Deduction at Source
 // (Withholding) Regulations 2024; goods and most other services are 2%.
 const DEFAULT_WHT_RATE = 0.05;
-
-// Kept in sync with RULE_WHT_CREDIT_CANDIDATE's keywords so the inferred
-// fallback and the fired rule always agree on which receipts look withheld.
-const WHT_KEYWORDS = ["WHT", "WITHHOLDING"];
 
 export interface TransactionTotals {
   revenue: number;
@@ -61,7 +57,7 @@ export function summarizeTransactionTotals(transactions: Transaction[]): Transac
         break;
     }
 
-    if (transaction.credit > 0 && includesAnyKeyword(transaction.description.toUpperCase(), WHT_KEYWORDS)) {
+    if (looksLikeWhtCredit(transaction)) {
       totals.inferredWhtCredits += Math.round(
         (transaction.credit / (1 - DEFAULT_WHT_RATE)) * DEFAULT_WHT_RATE
       );

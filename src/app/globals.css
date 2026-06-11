@@ -754,6 +754,40 @@ svg.lucide {
   padding: 6px 13px;
 }
 
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--fill);
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.filter-toggle .tg {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--flag);
+}
+
+.filter-toggle:hover {
+  border-color: var(--flag);
+  color: var(--flag);
+}
+
+.filter-toggle[aria-pressed="true"] {
+  border-color: var(--flag);
+  background: var(--flag-wash);
+  color: var(--flag);
+}
+
 .table-scroll {
   overflow-x: auto;
 }

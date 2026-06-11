@@ -8,6 +8,7 @@ import { InfoHint } from "@/components/ui/InfoHint";
 import { Select, type SelectOption } from "@/components/ui/Select";
 import type { EvidenceStatus, Transaction, TransactionCategory } from "@/domain/types";
 import { CATEGORY_OPTIONS, EVIDENCE_STATUS_OPTIONS } from "@/domain/options";
+import { isMissingMaterialEvidence } from "@/domain/transaction-flags";
 import { formatMoney, humanizeNarration } from "@/lib/format";
 
 const CATEGORY_FILTER_OPTIONS: ReadonlyArray<SelectOption<TransactionCategory | "all">> = [
@@ -21,11 +22,6 @@ const EVIDENCE_FILTER_OPTIONS: ReadonlyArray<SelectOption<EvidenceStatus | "all"
 ];
 
 const TRANSACTION_PAGE_SIZE = 50;
-const MATERIAL_EVIDENCE_CATEGORIES = new Set<TransactionCategory>([
-  "operating_expense",
-  "payroll",
-  "capital_asset"
-]);
 // Below this, nobody attaches an invoice (₦50 NIP fees, stamp duty) — a
 // "Review" nag on hundreds of micro-debits buries the rows that matter.
 const REVIEW_TAG_MINIMUM_DEBIT = 10000;
@@ -58,31 +54,42 @@ export function TransactionReviewTable({
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [evidenceFilter, setEvidenceFilter] = useState<EvidenceStatus | "all">("all");
+  const [needsEvidenceOnly, setNeedsEvidenceOnly] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
   const effectiveSearchQuery = searchQuery ?? localSearchQuery;
   const normalizedSearchQuery = effectiveSearchQuery.trim().toLowerCase();
-  const { reviewedCount, visibleTransactionIndexById, visibleTransactions } = useMemo(() => {
-    let reviewed = 0;
-    const visible: Transaction[] = [];
-    const indexById = new Map<string, number>();
+  const { reviewedCount, needsEvidenceCount, visibleTransactionIndexById, visibleTransactions } =
+    useMemo(() => {
+      let reviewed = 0;
+      let needsEvidence = 0;
+      const visible: Transaction[] = [];
+      const indexById = new Map<string, number>();
 
-    for (const transaction of transactions) {
-      if (transaction.reviewedByUser) {
-        reviewed += 1;
+      for (const transaction of transactions) {
+        if (transaction.reviewedByUser) {
+          reviewed += 1;
+        }
+
+        if (isMissingMaterialEvidence(transaction)) {
+          needsEvidence += 1;
+        }
+
+        if (
+          matchesFilters(transaction, normalizedSearchQuery, categoryFilter, evidenceFilter) &&
+          (!needsEvidenceOnly || isMissingMaterialEvidence(transaction))
+        ) {
+          indexById.set(transaction.id, visible.length);
+          visible.push(transaction);
+        }
       }
 
-      if (matchesFilters(transaction, normalizedSearchQuery, categoryFilter, evidenceFilter)) {
-        indexById.set(transaction.id, visible.length);
-        visible.push(transaction);
-      }
-    }
-
-    return {
-      reviewedCount: reviewed,
-      visibleTransactionIndexById: indexById,
-      visibleTransactions: visible
-    };
-  }, [categoryFilter, evidenceFilter, normalizedSearchQuery, transactions]);
+      return {
+        reviewedCount: reviewed,
+        needsEvidenceCount: needsEvidence,
+        visibleTransactionIndexById: indexById,
+        visibleTransactions: visible
+      };
+    }, [categoryFilter, evidenceFilter, needsEvidenceOnly, normalizedSearchQuery, transactions]);
   const pageCount = Math.max(1, Math.ceil(visibleTransactions.length / TRANSACTION_PAGE_SIZE));
   const currentPageIndex = Math.min(pageIndex, pageCount - 1);
   const pagedTransactions = useMemo(() => {
@@ -142,6 +149,11 @@ export function TransactionReviewTable({
   const updateEvidenceFilter = (nextEvidenceStatus: EvidenceStatus | "all") => {
     setPageIndex(0);
     setEvidenceFilter(nextEvidenceStatus);
+  };
+
+  const toggleNeedsEvidenceOnly = () => {
+    setPageIndex(0);
+    setNeedsEvidenceOnly((current) => !current);
   };
 
   if (transactions.length === 0) {
@@ -215,6 +227,17 @@ export function TransactionReviewTable({
             onValueChange={updateEvidenceFilter}
             items={EVIDENCE_FILTER_OPTIONS}
           />
+          {needsEvidenceCount > 0 || needsEvidenceOnly ? (
+            <button
+              type="button"
+              className="filter-toggle"
+              aria-pressed={needsEvidenceOnly}
+              onClick={toggleNeedsEvidenceOnly}
+            >
+              <span className="tg" aria-hidden="true" />
+              Needs evidence{needsEvidenceCount > 0 ? ` · ${needsEvidenceCount}` : ""}
+            </button>
+          ) : null}
           <span className="count-pill num">
             {visibleTransactions.length} / {transactions.length}
           </span>
@@ -377,11 +400,7 @@ export function TransactionReviewTable({
 type RowSeverity = "err" | "warn" | null;
 
 function rowSeverity(transaction: Transaction): RowSeverity {
-  if (
-    transaction.debit >= 1000000 &&
-    MATERIAL_EVIDENCE_CATEGORIES.has(transaction.category) &&
-    transaction.evidenceStatus === "none"
-  ) {
+  if (isMissingMaterialEvidence(transaction)) {
     return "err";
   }
 

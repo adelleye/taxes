@@ -27,7 +27,7 @@ import { applySuggestionDecision, deriveCurrentReview } from "@/domain/review-de
 import { ReviewOutputSchema, TaxCaseSchema, TransactionSchema } from "@/domain/schemas";
 import { findSimilarUnreviewedTransactionIds } from "@/domain/classification/category-propagation";
 import { estimateProjectedTaxPosition } from "@/domain/summary/tax-position";
-import { includesAnyKeyword } from "@/domain/text-match";
+import { isMissingMaterialEvidence, looksLikeWhtCredit } from "@/domain/transaction-flags";
 import type {
   BusinessProfile,
   ProjectedTaxPosition,
@@ -65,11 +65,6 @@ const WORKBENCH_SECTIONS = [
 
 type WorkbenchSectionId = (typeof WORKBENCH_SECTIONS)[number]["id"];
 
-const MATERIAL_EVIDENCE_CATEGORIES = new Set<Transaction["category"]>([
-  "operating_expense",
-  "payroll",
-  "capital_asset"
-]);
 const WARNING_CATEGORIES = new Set<Transaction["category"]>(["capital_asset", "payroll"]);
 
 export function WorkbenchClient() {
@@ -101,19 +96,11 @@ export function WorkbenchClient() {
     let warning = 0;
 
     for (const transaction of transactions) {
-      if (
-        transaction.debit >= 1000000 &&
-        MATERIAL_EVIDENCE_CATEGORIES.has(transaction.category) &&
-        transaction.evidenceStatus === "none"
-      ) {
+      if (isMissingMaterialEvidence(transaction)) {
         blocking += 1;
       }
 
-      if (
-        WARNING_CATEGORIES.has(transaction.category) ||
-        (transaction.credit > 0 &&
-          includesAnyKeyword(transaction.description.toUpperCase(), ["WHT", "WITHHOLDING"]))
-      ) {
+      if (WARNING_CATEGORIES.has(transaction.category) || looksLikeWhtCredit(transaction)) {
         warning += 1;
       }
     }
