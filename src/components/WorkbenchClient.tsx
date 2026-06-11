@@ -49,11 +49,24 @@ import {
 interface Notice {
   kind: "error" | "info";
   text: string;
+}
+
+// Transient confirmations (propagation, undo) render as a fixed toast, not an
+// inline banner: a banner above the table shifts every row down at the exact
+// moment the user is mid-edit, and it lingers until the next notice replaces it.
+interface Toast {
+  id: number;
+  text: string;
   action?: {
     label: string;
     onAction: () => void;
   };
+  leaving: boolean;
 }
+
+const TOAST_DISMISS_MS = 5000;
+const TOAST_WITH_ACTION_DISMISS_MS = 8000;
+const TOAST_EXIT_MS = 160;
 
 interface PropagatedRowSnapshot {
   id: string;
@@ -105,6 +118,9 @@ export function WorkbenchClient() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [activeSection, setActiveSection] = useState<WorkbenchSectionId>("company");
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastIdRef = useRef(0);
+  const toastTimersRef = useRef<{ dismiss?: number; remove?: number }>({});
   const [pendingImport, setPendingImport] = useState<PendingStatementImport | null>(null);
   const isProfileComplete = isBusinessProfileReady(profile);
 
@@ -215,6 +231,29 @@ export function WorkbenchClient() {
     };
   }, []);
 
+  const clearToastTimers = () => {
+    window.clearTimeout(toastTimersRef.current.dismiss);
+    window.clearTimeout(toastTimersRef.current.remove);
+  };
+
+  const dismissToast = () => {
+    clearToastTimers();
+    setToast((current) => (current ? { ...current, leaving: true } : current));
+    toastTimersRef.current.remove = window.setTimeout(() => setToast(null), TOAST_EXIT_MS);
+  };
+
+  const showToast = (text: string, action?: Toast["action"]) => {
+    clearToastTimers();
+    toastIdRef.current += 1;
+    setToast({ id: toastIdRef.current, text, action, leaving: false });
+    toastTimersRef.current.dismiss = window.setTimeout(
+      dismissToast,
+      action ? TOAST_WITH_ACTION_DISMISS_MS : TOAST_DISMISS_MS
+    );
+  };
+
+  useEffect(() => clearToastTimers, []);
+
   // Rehydrate the last saved workspace so a refresh doesn't drop the user's work.
   // This must run in an effect: localStorage is unavailable during SSR, and a lazy
   // initializer would desync server/client HTML. The mount-time setState is intentional.
@@ -246,7 +285,7 @@ export function WorkbenchClient() {
   const openCsvUpload = () => {
     if (!isProfileComplete) {
       setActiveSection("company");
-      document.getElementById("company")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("company")?.scrollIntoView({ block: "start" });
       return;
     }
 
@@ -393,10 +432,9 @@ export function WorkbenchClient() {
           : transaction;
       })
     );
-    setNotice({
-      kind: "info",
-      text: `Reverted ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"}. The row you edited kept its new category.`
-    });
+    showToast(
+      `Reverted ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"}. The row you edited kept its category.`
+    );
   };
 
   const updateTransaction = (transactionId: string, patch: Partial<Transaction>) => {
@@ -429,11 +467,10 @@ export function WorkbenchClient() {
       const snapshots = transactions
         .filter((transaction) => propagateIds.has(transaction.id))
         .map(({ id, category, confidence }) => ({ id, category, confidence }));
-      setNotice({
-        kind: "info",
-        text: `Also applied to ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"} with the same payee pattern. Rows you already reviewed were left alone.`,
-        action: { label: "Undo", onAction: () => undoPropagation(snapshots) }
-      });
+      showToast(
+        `Also applied to ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"} from the same payee.`,
+        { label: "Undo", onAction: () => undoPropagation(snapshots) }
+      );
     }
 
     if (review) {
@@ -469,7 +506,7 @@ export function WorkbenchClient() {
       document.getElementById(`flag-${suggestionId}`) ??
       findNearestRemainingFlag(flagIds, `flag-${suggestionId}`) ??
       document.getElementById("review");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    target?.scrollIntoView({ block: "start" });
   }, [pendingReviewReturn]);
 
   const updateProfile = (nextProfile: BusinessProfile) => {
@@ -502,7 +539,7 @@ export function WorkbenchClient() {
       setReview(review);
       setIsReviewStale(false);
       window.setTimeout(() => {
-        document.getElementById("review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("review")?.scrollIntoView({ block: "start" });
       }, 0);
     } catch (caughtError) {
       console.error(caughtError);
@@ -530,12 +567,12 @@ export function WorkbenchClient() {
     });
     setTransactionSearch("");
     window.setTimeout(() => {
-      document.getElementById("transactions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("transactions")?.scrollIntoView({ block: "start" });
     }, 0);
   };
 
   const scrollToExport = () => {
-    document.getElementById("export")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("export")?.scrollIntoView({ block: "start" });
   };
 
   const sidebar = (
@@ -551,6 +588,16 @@ export function WorkbenchClient() {
 
   return (
     <AppShell sidebar={sidebar} saveState={saveState}>
+      {toast ? (
+        <div key={toast.id} className={clsx("toast", toast.leaving && "toast-leaving")} role="status">
+          {toast.text}
+          {toast.action ? (
+            <button type="button" className="toast-action" onClick={toast.action.onAction}>
+              {toast.action.label}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <input
         ref={csvInputRef}
         className="sr-only"
@@ -897,11 +944,6 @@ function NoticeBanner({ notice }: { notice: Notice | null }) {
       role={notice.kind === "error" ? "alert" : "status"}
     >
       {notice.text}
-      {notice.action ? (
-        <button type="button" className="notice-action" onClick={notice.action.onAction}>
-          {notice.action.label}
-        </button>
-      ) : null}
     </p>
   );
 }

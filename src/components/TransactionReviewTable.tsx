@@ -127,7 +127,7 @@ export function TransactionReviewTable({
     window.setTimeout(() => {
       document
         .getElementById(`transaction-${focusedTransactionId}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }, 0);
   }, [currentPageIndex, focusedTransactionId, visibleTransactionIndexById]);
 

@@ -48,6 +48,7 @@
   --radius: 11px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --z-popover: 60;
+  --z-toast: 70;
 }
 
 * {
@@ -785,11 +786,6 @@ svg.lucide {
   background: var(--flag);
 }
 
-.filter-toggle:hover {
-  border-color: var(--flag);
-  color: var(--flag);
-}
-
 .filter-toggle[aria-pressed="true"] {
   border-color: var(--flag);
   background: var(--flag-wash);
@@ -840,6 +836,7 @@ tbody td {
 }
 
 tbody tr {
+  scroll-margin: 90px 0;
   transition: background 0.15s ease;
 }
 
@@ -1001,12 +998,6 @@ tbody tr.focused td {
   padding: 7px 11px;
 }
 
-.pager-btn:not(:disabled):hover {
-  border-color: var(--cyan-wash);
-  background: var(--cyan-tint);
-  color: var(--ink);
-}
-
 .pager-btn:disabled {
   cursor: not-allowed;
   background: var(--fill-2);
@@ -1151,12 +1142,8 @@ tbody tr.focused td {
   border-radius: 16px;
   background: #fff;
   box-shadow: var(--shadow);
+  scroll-margin-top: 24px;
   transition: box-shadow 0.35s var(--ease), transform 0.35s var(--ease);
-}
-
-.flag:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
 }
 
 .flag::before {
@@ -1224,6 +1211,10 @@ tbody tr.focused td {
 .flag-head {
   flex: 1;
   min-width: 0;
+}
+
+.flag-head h4 {
+  text-wrap: balance;
 }
 
 .flag-kicker {
@@ -1671,11 +1662,6 @@ tbody tr.focused td {
   transition: box-shadow 0.3s, transform 0.3s;
 }
 
-.ecard:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-2px);
-}
-
 .ecard-icon {
   display: grid;
   width: 44px;
@@ -1754,23 +1740,51 @@ tbody tr.focused td {
   color: var(--cyan-deep);
 }
 
-.notice-action {
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(92vw, 480px);
+  border-radius: 12px;
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  padding: 12px 17px;
+  box-shadow: 0 14px 34px -14px rgba(15, 20, 25, 0.55);
+  transform: translate(-50%, 0);
+  animation: toast-in 0.2s var(--ease);
+}
+
+.toast-leaving {
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+}
+
+.toast-action {
   flex: none;
-  margin-left: auto;
-  border: 1px solid currentColor;
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 99px;
   background: transparent;
-  color: inherit;
+  color: #fff;
   font-family: var(--sans);
   font-size: var(--fs-xs);
   font-weight: 600;
-  padding: 3px 12px;
+  padding: 4px 13px;
   cursor: pointer;
-  transition: background 0.2s;
-}
-
-.notice-action:hover {
-  background: rgb(255 255 255 / 0.6);
+  transition: background 0.2s ease;
 }
 
 .mapping-card {
@@ -2340,6 +2354,26 @@ tbody tr.focused td {
     background: rgba(255, 255, 255, 0.12);
     color: #fff;
   }
+  .filter-toggle:hover {
+    border-color: var(--flag);
+    color: var(--flag);
+  }
+  .pager-btn:not(:disabled):hover {
+    border-color: var(--cyan-wash);
+    background: var(--cyan-tint);
+    color: var(--ink);
+  }
+  .flag:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+  .ecard:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+  .toast-action:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
 }
 
 /* touch: bigger targets, 16px inputs to avoid iOS zoom */
@@ -2353,14 +2387,25 @@ tbody tr.focused td {
   .nav-item,
   .select-trigger,
   .sbtn,
-  .seg {
+  .seg,
+  .pager-btn,
+  .filter-toggle,
+  .toast-action {
     min-height: 44px;
+  }
+  .sc-remove,
+  .search-clear {
+    width: 40px;
+    height: 40px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  .toast {
+    animation: none;
   }
   .reveal {
     opacity: 1;
