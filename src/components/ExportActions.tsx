@@ -3,6 +3,7 @@
 import { Download, FileCheck, Printer } from "lucide-react";
 import { Button } from "@/components/Button";
 import type { ReviewOutput, TaxCase, Transaction } from "@/domain/types";
+import { renderTaxPackHtml } from "@/domain/summary/export-html";
 import { buildTaxPack } from "@/domain/summary/tax-pack";
 
 interface ExportActionsProps {
@@ -28,29 +29,19 @@ export function ExportActions({
     downloadBlob(blob, `${taxCase.id}-tax-pack.json`);
   };
 
-  const openPrintableSummary = async () => {
-    const printWindow = window.open("", "_blank");
+  const openPrintableSummary = () => {
+    const html = renderTaxPackHtml(buildTaxPack(taxCase, transactions, review));
+    const blob = new Blob([html], { type: "text/html" });
+    const href = URL.createObjectURL(blob);
+    const printWindow = window.open(href, "_blank");
 
-    try {
-      const response = await fetch("/api/export/html", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ taxCase, transactions, review })
-      });
-      const html = await response.text();
-      const blob = new Blob([html], { type: "text/html" });
-      const href = URL.createObjectURL(blob);
-
-      if (printWindow) {
-        printWindow.location.href = href;
-        window.setTimeout(() => URL.revokeObjectURL(href), 60000);
-        return;
-      }
-
-      downloadBlob(blob, `${taxCase.id}-tax-pack.html`);
-    } catch {
-      printWindow?.close();
+    if (printWindow) {
+      window.setTimeout(() => URL.revokeObjectURL(href), 60000);
+      return;
     }
+
+    URL.revokeObjectURL(href);
+    downloadBlob(blob, `${taxCase.id}-tax-pack.html`);
   };
 
   return (

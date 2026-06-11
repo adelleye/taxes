@@ -195,16 +195,4 @@ export const ReviewOutputSchema = z.object({
   summary: TaxPackSummarySchema
 });
 
-export const ReviewRequestSchema = z.object({
-  taxCase: TaxCaseSchema,
-  transactions: z.array(TransactionSchema).min(1)
-});
-
-export const TaxPackSchema = z.object({
-  taxCase: TaxCaseSchema,
-  transactions: z.array(TransactionSchema),
-  review: ReviewOutputSchema,
-  exportedAt: z.string().datetime()
-});
-
 export const TaxRuleConfigListSchema = z.array(TaxRuleConfigSchema).min(1);

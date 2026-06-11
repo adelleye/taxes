@@ -24,7 +24,9 @@ import {
   type ImportPreview
 } from "@/domain/import/csv";
 import { applySuggestionDecision, deriveCurrentReview } from "@/domain/review-decisions";
-import { ReviewOutputSchema, TaxCaseSchema, TransactionSchema } from "@/domain/schemas";
+import { runReviewEngine } from "@/domain/rules/rule-engine";
+import { loadStaticTaxRules } from "@/domain/rules/rule-store";
+import { TaxCaseSchema, TransactionSchema } from "@/domain/schemas";
 import { findSimilarUnreviewedTransactionIds } from "@/domain/classification/category-propagation";
 import { estimateProjectedTaxPosition } from "@/domain/summary/tax-position";
 import { isMissingMaterialEvidence, looksLikeWhtCredit } from "@/domain/transaction-flags";
@@ -400,7 +402,7 @@ export function WorkbenchClient() {
     }
   };
 
-  const runReview = async () => {
+  const runReview = () => {
     if (!taxCase || transactions.length === 0) {
       return;
     }
@@ -414,12 +416,11 @@ export function WorkbenchClient() {
         businessProfile: profile,
         status: "reviewed"
       };
-      const response = await fetch("/api/review", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ taxCase: caseForReview, transactions })
+      const review = runReviewEngine({
+        taxCase: caseForReview,
+        transactions,
+        rules: loadStaticTaxRules()
       });
-      const review = ReviewOutputSchema.parse(await response.json());
       setTaxCase(caseForReview);
       setReview(review);
       setIsReviewStale(false);
