@@ -36,7 +36,6 @@ interface ReviewIndex {
   debitEntries: IndexedTransaction[];
   creditEntries: IndexedTransaction[];
   reversalCreditEntries: IndexedTransaction[];
-  byCategory: Map<TransactionCategory, IndexedTransaction[]>;
 }
 
 interface DuplicateCreditQueue {
@@ -190,7 +189,6 @@ function fireRule(
 }
 
 function buildReviewIndex(transactions: Transaction[]): ReviewIndex {
-  const byCategory = new Map<TransactionCategory, IndexedTransaction[]>();
   const entries: IndexedTransaction[] = [];
   const debitEntries: IndexedTransaction[] = [];
   const creditEntries: IndexedTransaction[] = [];
@@ -214,69 +212,17 @@ function buildReviewIndex(transactions: Transaction[]): ReviewIndex {
         reversalCreditEntries.push(entry);
       }
     }
-
-    const categoryEntries = byCategory.get(transaction.category);
-    if (categoryEntries) {
-      categoryEntries.push(entry);
-    } else {
-      byCategory.set(transaction.category, [entry]);
-    }
   }
 
-  return { entries, debitEntries, creditEntries, reversalCreditEntries, byCategory };
+  return { entries, debitEntries, creditEntries, reversalCreditEntries };
 }
 
 function selectEntriesByCategories(
   index: ReviewIndex,
   categories: TransactionCategory[]
 ): IndexedTransaction[] {
-  const lists: IndexedTransaction[][] = [];
-  const seenCategories = new Set<TransactionCategory>();
-
-  for (const category of categories) {
-    if (seenCategories.has(category)) {
-      continue;
-    }
-
-    seenCategories.add(category);
-    const list = index.byCategory.get(category);
-    if (list && list.length > 0) {
-      lists.push(list);
-    }
-  }
-
-  if (lists.length === 0) {
-    return [];
-  }
-
-  if (lists.length === 1) {
-    return lists[0];
-  }
-
-  const positions = new Array<number>(lists.length).fill(0);
-  const selected: IndexedTransaction[] = [];
-
-  while (true) {
-    let bestListIndex = -1;
-    let bestOrder = Number.POSITIVE_INFINITY;
-
-    for (let listIndex = 0; listIndex < lists.length; listIndex += 1) {
-      const entry = lists[listIndex][positions[listIndex]];
-      if (entry && entry.order < bestOrder) {
-        bestOrder = entry.order;
-        bestListIndex = listIndex;
-      }
-    }
-
-    if (bestListIndex === -1) {
-      break;
-    }
-
-    selected.push(lists[bestListIndex][positions[bestListIndex]]);
-    positions[bestListIndex] += 1;
-  }
-
-  return selected;
+  const wanted = new Set(categories);
+  return index.entries.filter((entry) => wanted.has(entry.transaction.category));
 }
 
 function selectEntriesByAmountSide(index: ReviewIndex, amountSide: AmountSide): IndexedTransaction[] {

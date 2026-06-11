@@ -74,19 +74,9 @@ function transaction(
     credit,
     balance: 0,
     sourceAccount: "GTB-001",
-    raw: {
-      date: "2026-02-10",
-      description,
-      counterparty: "Unknown",
-      debit,
-      credit,
-      balance: 0,
-      sourceAccount: "GTB-001"
-    },
     category,
     confidence: 0.45,
     reviewedByUser: false,
-    evidenceStatus: "none",
-    evidenceIds: []
+    evidenceStatus: "none"
   };
 }

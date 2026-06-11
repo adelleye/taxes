@@ -53,12 +53,10 @@ export const TransactionSchema = ImportedStatementRowSchema.extend({
   id: z.string().min(1),
   caseId: z.string().min(1),
   importId: z.string().min(1),
-  raw: ImportedStatementRowSchema,
   category: z.enum(TRANSACTION_CATEGORIES),
   confidence: z.number().min(0).max(1),
   reviewedByUser: z.boolean(),
-  evidenceStatus: z.enum(EVIDENCE_STATUSES),
-  evidenceIds: z.array(z.string())
+  evidenceStatus: z.enum(EVIDENCE_STATUSES)
 });
 
 const TransactionTriggerSchema = z.object({

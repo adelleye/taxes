@@ -81,27 +81,21 @@ describe("sync with tax-rules.json", () => {
 });
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
-  const row = {
+  return {
+    id: "t-1",
+    caseId: "case-test",
+    importId: "import-1",
     date: "2026-02-10",
     description: "OUTWARD TRANSFER TO SUPPLIER",
     counterparty: "Unknown",
     debit: 1_500_000,
     credit: 0,
     balance: 0,
-    sourceAccount: "GTB-001"
-  };
-
-  return {
-    id: "t-1",
-    caseId: "case-test",
-    importId: "import-1",
-    ...row,
-    raw: row,
+    sourceAccount: "GTB-001",
     category: "operating_expense",
     confidence: 0.9,
     reviewedByUser: false,
     evidenceStatus: "none",
-    evidenceIds: [],
     ...overrides
   };
 }

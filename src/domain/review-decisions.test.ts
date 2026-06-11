@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createSampleTaxCase } from "@/adapters/sample-case";
 import { applySuggestionDecision, deriveCurrentReview } from "@/domain/review-decisions";
 import { loadStaticTaxRules } from "@/domain/rules/rule-store";
 import { runReviewEngine } from "@/domain/rules/rule-engine";
-import { buildReviewedSeedFixture } from "@/domain/test-fixtures";
+import { buildReviewedSeedFixture, createSampleTaxCase } from "@/domain/test-fixtures";
 import type { TaxSuggestion, Transaction } from "@/domain/types";
 
 describe("applySuggestionDecision", () => {
@@ -106,20 +105,10 @@ function mysteryTransaction(): Transaction {
     credit: 0,
     balance: 0,
     sourceAccount: "GTB-001",
-    raw: {
-      date: "2026-02-12",
-      description: "OUTWARD TRANSFER (N) 777 TO FIRST BANK | CHUKWU AGENCY /000023",
-      counterparty: "Unknown",
-      debit: 450000,
-      credit: 0,
-      balance: 0,
-      sourceAccount: "GTB-001"
-    },
     category: "uncategorized",
     confidence: 0.45,
     reviewedByUser: false,
-    evidenceStatus: "none",
-    evidenceIds: []
+    evidenceStatus: "none"
   };
 }
 

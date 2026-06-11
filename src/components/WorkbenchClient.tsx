@@ -14,7 +14,7 @@ import { ProjectedTaxPositionCard } from "@/components/ProjectedTaxPositionCard"
 import { ReviewResults } from "@/components/ReviewResults";
 import { TransactionReviewTable } from "@/components/TransactionReviewTable";
 import { createCase, EMPTY_PROFILE, isBusinessProfileReady } from "@/domain/case";
-import { RuleBasedClassifier } from "@/domain/classification/rule-based-classifier";
+import { classifyTransactions } from "@/domain/classification/rule-based-classifier";
 import {
   createSavedColumnMapping,
   createImportedTransactions,
@@ -289,9 +289,8 @@ export function WorkbenchClient() {
       status: "transactions_imported"
     });
     const importId = crypto.randomUUID();
-    const classified = new RuleBasedClassifier().classifyBatch(
-      createImportedTransactions(preview.rows, activeCase.id, importId),
-      profile
+    const classified = classifyTransactions(
+      createImportedTransactions(preview.rows, activeCase.id, importId)
     );
     const importedRows = TransactionSchema.array().parse(classified);
 

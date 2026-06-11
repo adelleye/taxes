@@ -1,5 +1,4 @@
-import type { ClassifierAdapter } from "@/adapters/contracts";
-import type { BusinessProfile, Transaction, TransactionCategory } from "@/domain/types";
+import type { Transaction, TransactionCategory } from "@/domain/types";
 import { includesAnyKeyword } from "@/domain/text-match";
 
 interface ClassificationMatch {
@@ -10,8 +9,8 @@ interface ClassificationMatch {
 /** Debits at or below this are presumed bank charges whatever the narration says. */
 const MICRO_DEBIT_BANK_CHARGE_LIMIT = 1000;
 
-export class RuleBasedClassifier implements ClassifierAdapter {
-  classify(transaction: Transaction): Transaction {
+export function classifyTransactions(transactions: Transaction[]): Transaction[] {
+  return transactions.map((transaction) => {
     const match = classifyTransactionText(
       `${transaction.description} ${transaction.counterparty}`,
       transaction.debit,
@@ -23,12 +22,7 @@ export class RuleBasedClassifier implements ClassifierAdapter {
       category: match.category,
       confidence: match.confidence
     };
-  }
-
-  classifyBatch(transactions: Transaction[], profile: BusinessProfile): Transaction[] {
-    void profile;
-    return transactions.map((transaction) => this.classify(transaction));
-  }
+  });
 }
 
 // Keywords match on word boundaries, so plural and variant forms must be

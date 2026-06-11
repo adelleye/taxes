@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createSampleTaxCase } from "@/adapters/sample-case";
 import { runReviewEngine } from "@/domain/rules/rule-engine";
-import { buildReviewedSeedFixture } from "@/domain/test-fixtures";
+import { buildReviewedSeedFixture, createSampleTaxCase } from "@/domain/test-fixtures";
 import type { TaxRuleConfig, Transaction, TransactionCategory } from "@/domain/types";
 
 describe("runReviewEngine", () => {
@@ -82,19 +81,9 @@ function transaction(
     credit,
     balance: 0,
     sourceAccount: "GTB-001",
-    raw: {
-      date: "2026-01-15",
-      description,
-      counterparty: "Counterparty Ltd",
-      debit,
-      credit,
-      balance: 0,
-      sourceAccount: "GTB-001"
-    },
     category,
     confidence: 0.9,
     reviewedByUser: false,
-    evidenceStatus: "none",
-    evidenceIds: []
+    evidenceStatus: "none"
   };
 }

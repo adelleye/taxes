@@ -36,11 +36,7 @@ describe("tax-pack summary", () => {
     const { taxCase, transactions, review } = buildReviewedSeedFixture();
     const anonymousTransactions = transactions.map((transaction) => ({
       ...transaction,
-      counterparty: "Unknown",
-      raw: {
-        ...transaction.raw,
-        counterparty: "Unknown"
-      }
+      counterparty: "Unknown"
     }));
     const summary = summarizeTaxPack(anonymousTransactions, taxCase.businessProfile, [
       ...review.errors,

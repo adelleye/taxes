@@ -254,12 +254,10 @@ export function createImportedTransactions(
     id: `${importId}-txn-${String(index + 1).padStart(3, "0")}`,
     caseId,
     importId,
-    raw: row,
     category: "uncategorized",
     confidence: 0,
     reviewedByUser: false,
-    evidenceStatus: "none",
-    evidenceIds: []
+    evidenceStatus: "none"
   }));
 }
 

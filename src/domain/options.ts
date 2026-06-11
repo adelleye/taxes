@@ -1,10 +1,5 @@
-import {
-  EVIDENCE_STATUSES,
-  TRANSACTION_CATEGORIES,
-  TURNOVER_BANDS,
-  USER_DECISIONS
-} from "@/domain/types";
-import type { EvidenceStatus, TransactionCategory, TurnoverBand, UserDecision } from "@/domain/types";
+import { EVIDENCE_STATUSES, TRANSACTION_CATEGORIES, TURNOVER_BANDS } from "@/domain/types";
+import type { EvidenceStatus, TransactionCategory, TurnoverBand } from "@/domain/types";
 
 export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   revenue: "Revenue",
@@ -23,13 +18,6 @@ export const EVIDENCE_LABELS: Record<EvidenceStatus, string> = {
   available: "Available",
   uploaded: "Uploaded",
   not_applicable: "Not applicable"
-};
-
-export const USER_DECISION_LABELS: Record<UserDecision, string> = {
-  pending: "Pending",
-  accepted: "Accepted",
-  rejected: "Rejected",
-  needs_review: "Needs review"
 };
 
 export const TURNOVER_LABELS: Record<TurnoverBand, string> = {
@@ -65,11 +53,6 @@ export const CATEGORY_OPTIONS = TRANSACTION_CATEGORIES.map((value) => ({
 export const EVIDENCE_STATUS_OPTIONS = EVIDENCE_STATUSES.map((value) => ({
   value,
   label: EVIDENCE_LABELS[value]
-}));
-
-export const USER_DECISION_OPTIONS = USER_DECISIONS.map((value) => ({
-  value,
-  label: USER_DECISION_LABELS[value]
 }));
 
 export const TURNOVER_OPTIONS = TURNOVER_BANDS.map((value) => ({

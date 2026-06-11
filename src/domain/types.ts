@@ -90,22 +90,10 @@ export interface Transaction extends ImportedStatementRow {
   caseId: string;
   /** Groups rows that arrived in the same uploaded statement. */
   importId: string;
-  raw: ImportedStatementRow;
   category: TransactionCategory;
   confidence: number;
   reviewedByUser: boolean;
   evidenceStatus: EvidenceStatus;
-  evidenceIds: string[];
-}
-
-export interface Evidence {
-  id: string;
-  caseId: string;
-  type: "invoice" | "receipt" | "payroll_schedule" | "wht_certificate" | "other";
-  fileName: string;
-  linkedTransactionIds: string[];
-  status: EvidenceStatus;
-  extractedFields: Record<string, unknown>;
 }
 
 export type AmountSide = "debit" | "credit" | "either";
