@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { Check, CircleDashed, RefreshCw, X } from "lucide-react";
+import { Check, CircleDashed, RefreshCw, TriangleAlert, X } from "lucide-react";
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/Button";
@@ -49,6 +49,16 @@ import {
 interface Notice {
   kind: "error" | "info";
   text: string;
+  action?: {
+    label: string;
+    onAction: () => void;
+  };
+}
+
+interface PropagatedRowSnapshot {
+  id: string;
+  category: Transaction["category"];
+  confidence: number;
 }
 
 interface PendingStatementImport {
@@ -356,6 +366,24 @@ export function WorkbenchClient() {
     setNotice(null);
   };
 
+  // Restores the rows a category change fanned out to. Rows the user touched
+  // after the fan-out keep their manual decision — undo never outranks a human.
+  const undoPropagation = (snapshots: PropagatedRowSnapshot[]) => {
+    const priorById = new Map(snapshots.map((snapshot) => [snapshot.id, snapshot]));
+    setTransactions((current) =>
+      current.map((transaction) => {
+        const prior = priorById.get(transaction.id);
+        return prior && !transaction.reviewedByUser
+          ? { ...transaction, category: prior.category, confidence: prior.confidence }
+          : transaction;
+      })
+    );
+    setNotice({
+      kind: "info",
+      text: `Reverted ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"}. The row you edited kept its new category.`
+    });
+  };
+
   const updateTransaction = (transactionId: string, patch: Partial<Transaction>) => {
     const edited = transactions.find((transaction) => transaction.id === transactionId);
     if (!edited) {
@@ -383,9 +411,13 @@ export function WorkbenchClient() {
     );
 
     if (propagateIds && propagateIds.size > 0) {
+      const snapshots = transactions
+        .filter((transaction) => propagateIds.has(transaction.id))
+        .map(({ id, category, confidence }) => ({ id, category, confidence }));
       setNotice({
         kind: "info",
-        text: `Applied to ${propagateIds.size} similar transaction${propagateIds.size === 1 ? "" : "s"} with the same payee pattern. Rows you already reviewed were left alone.`
+        text: `Also applied to ${snapshots.length} similar transaction${snapshots.length === 1 ? "" : "s"} with the same payee pattern. Rows you already reviewed were left alone.`,
+        action: { label: "Undo", onAction: () => undoPropagation(snapshots) }
       });
     }
 
@@ -497,7 +529,9 @@ export function WorkbenchClient() {
       <section className="sec" id="company">
         <div className="sec-head">
           <h1>Company</h1>
-          <span className="sec-step">Step 1</span>
+          <span className={clsx("sec-step", !isProfileComplete && "req")}>
+            {isProfileComplete ? "Step 1" : "Step 1 — required first"}
+          </span>
         </div>
         <p className="sec-desc">
           Your CAC profile and tax year. These shape the checks — nothing is filed anywhere.
@@ -573,7 +607,13 @@ export function WorkbenchClient() {
         </div>
 
         {isReviewStale ? (
-          <p className="stale-note">Results are from the last run. Re-run review before exporting.</p>
+          <div className="stale-banner" role="alert">
+            <TriangleAlert size={17} aria-hidden="true" />
+            <p>
+              <strong>These results are out of date.</strong> You changed transactions or the
+              profile after the last run — re-run the review before exporting the pack.
+            </p>
+          </div>
         ) : null}
 
         {currentReview ? (
@@ -776,6 +816,11 @@ function NoticeBanner({ notice }: { notice: Notice | null }) {
       role={notice.kind === "error" ? "alert" : "status"}
     >
       {notice.text}
+      {notice.action ? (
+        <button type="button" className="notice-action" onClick={notice.action.onAction}>
+          {notice.action.label}
+        </button>
+      ) : null}
     </p>
   );
 }

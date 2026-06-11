@@ -508,6 +508,13 @@ svg.lucide {
   text-transform: uppercase;
 }
 
+.sec-step.req {
+  border-radius: 99px;
+  background: var(--flag-wash);
+  color: var(--flag);
+  padding: 3px 10px;
+}
+
 .sec-desc {
   max-width: 74ch;
   margin-bottom: 22px;
@@ -1570,13 +1577,26 @@ tbody tr.focused td {
   padding: 3px 10px;
 }
 
-.stale-note {
+.stale-banner {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
   margin-bottom: 16px;
+  border-left: 3px solid var(--warn);
   border-radius: 12px;
   background: var(--warn-wash);
   color: var(--warn);
   font-size: var(--fs-sm);
-  padding: 12px 15px;
+  padding: 13px 16px;
+}
+
+.stale-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.stale-banner strong {
+  font-weight: 700;
 }
 
 /* ============ EXPORT ============ */
@@ -1735,6 +1755,24 @@ tbody tr.focused td {
   font-size: var(--fs-sm);
   font-weight: 500;
   padding: 11px 14px;
+}
+
+.notice-action {
+  margin-left: 10px;
+  border: 1px solid currentColor;
+  border-radius: 99px;
+  background: transparent;
+  color: inherit;
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 2px 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notice-action:hover {
+  background: rgb(255 255 255 / 0.6);
 }
 
 .mapping-card {
