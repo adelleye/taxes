@@ -142,6 +142,31 @@ describe("previewBankStatementCsv", () => {
     expect(rows[1]).toMatchObject({ date: "2026-05-02", debit: 1500 });
   });
 
+  it("reads the first matching column when normalized headers collide", () => {
+    // "DEBIT" and "debit " both normalize to "debit"; the duplicate carries
+    // decoy values so a silent switch to last-match fails this test.
+    const csv = [
+      "Posted,Details,DEBIT,Credit,debit ,Balance",
+      "01/05/2026,CUSTOMER RECEIPT,,5000,111111,5000",
+      "02/05/2026,SUPPLIER PAYMENT,2500,,999999,2500"
+    ].join("\n");
+
+    const { rows, skipped } = confirmBankStatementImport(csv, {
+      date: "Posted",
+      description: "Details",
+      debit: "Debit",
+      credit: "Credit",
+      balance: "Balance",
+      amountMode: "debit_credit_columns",
+      dateFormat: "DD/MM/YYYY"
+    });
+
+    expect(skipped).toHaveLength(0);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ debit: 0, credit: 5000 });
+    expect(rows[1]).toMatchObject({ debit: 2500, credit: 0 });
+  });
+
   it("reports invalid date rows without failing the whole file", () => {
     const csv = [
       "Date,Narration,Debit,Credit,Running Balance",
