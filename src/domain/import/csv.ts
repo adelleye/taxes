@@ -493,9 +493,10 @@ function mappingLooksReliable(
 ): boolean {
   const sampleRecords = records.slice(0, Math.min(records.length, headerIndex + SAMPLE_VALIDATION_ROWS + 1));
   const normalized = normalizeStatementRows(sampleRecords, headerIndex, headers, mapping, metadata);
+  const readCell = createCellReader(headers);
   const possibleRows = sampleRecords
     .slice(headerIndex + 1)
-    .filter((row) => !isBlankRow(row) && !isJunkRow(row, cellFor(row, headers, mapping.description)))
+    .filter((row) => !isBlankRow(row) && !isJunkRow(row, readCell(row, mapping.description)))
     .length;
   const accountedRows =
     normalized.rows.length + normalized.rowIssues.filter((issue) => issue.severity === "error").length;
@@ -513,6 +514,7 @@ function normalizeStatementRows(
   const metadata: StatementMetadata = { ...baseMetadata };
   const rows: ImportedStatementRow[] = [];
   const rowIssues: ImportRowIssue[] = [];
+  const readCell = createCellReader(headers);
   let debitTotal = 0;
   let creditTotal = 0;
   let previousBalance = metadata.openingBalance;
@@ -528,15 +530,15 @@ function normalizeStatementRows(
       continue;
     }
 
-    const description = cellFor(rawRow, headers, mapping.description);
+    const description = readCell(rawRow, mapping.description);
 
     if (isJunkRow(rawRow, description)) {
-      updateOpeningOrClosingBalance(metadata, rawRow, headers, mapping, description);
+      updateOpeningOrClosingBalance(metadata, rawRow, readCell, mapping, description);
       rowIssues.push({ rowNumber, severity: "skipped", message: "Non-transaction row", rawRow });
       continue;
     }
 
-    const date = parseStatementDate(cellFor(rawRow, headers, mapping.date), mapping.dateFormat);
+    const date = parseStatementDate(readCell(rawRow, mapping.date), mapping.dateFormat);
 
     if (!date) {
       rowIssues.push({
@@ -554,8 +556,8 @@ function normalizeStatementRows(
     }
 
     try {
-      const { debit, credit } = parseDebitCredit(rawRow, headers, mapping);
-      const balance = mapping.balance ? parseOptionalAmount(cellFor(rawRow, headers, mapping.balance)) : 0;
+      const { debit, credit } = parseDebitCredit(rawRow, readCell, mapping);
+      const balance = mapping.balance ? parseOptionalAmount(readCell(rawRow, mapping.balance)) : 0;
 
       if (debit === 0 && credit === 0) {
         rowIssues.push({ rowNumber, severity: "skipped", message: "No debit or credit amount", rawRow });
@@ -565,12 +567,12 @@ function normalizeStatementRows(
       const row = ImportedStatementRowSchema.safeParse({
         date: date.iso,
         description,
-        counterparty: readOptionalCell(rawRow, headers, mapping.counterparty) || "Unknown",
+        counterparty: readOptionalCell(rawRow, readCell, mapping.counterparty) || "Unknown",
         debit,
         credit,
         balance,
-        sourceAccount: readOptionalCell(rawRow, headers, mapping.sourceAccount) || defaultSourceAccount(metadata),
-        reference: readOptionalCell(rawRow, headers, mapping.reference) || undefined,
+        sourceAccount: readOptionalCell(rawRow, readCell, mapping.sourceAccount) || defaultSourceAccount(metadata),
+        reference: readOptionalCell(rawRow, readCell, mapping.reference) || undefined,
         sourceBank: metadata.bankName,
         originalRowNumber: rowNumber,
         rawSource: rawSourceFor(rawRow, headers)
@@ -675,7 +677,7 @@ function mineStatementMetadata(records: string[][], headerIndex = Math.min(recor
 function updateOpeningOrClosingBalance(
   metadata: StatementMetadata,
   row: string[],
-  headers: string[],
+  readCell: CellReader,
   mapping: ColumnMapping,
   description: string
 ) {
@@ -683,7 +685,7 @@ function updateOpeningOrClosingBalance(
     return;
   }
 
-  const balance = parseOptionalAmount(cellFor(row, headers, mapping.balance));
+  const balance = parseOptionalAmount(readCell(row, mapping.balance));
   const normalizedDescription = normalizeHeader(description);
 
   if (balance === 0) {
@@ -697,36 +699,58 @@ function updateOpeningOrClosingBalance(
   }
 }
 
-function cellFor(row: string[], headers: string[], header: string | undefined): string {
-  if (!header) {
-    return "";
-  }
+type CellReader = (row: string[], header: string | undefined) => string;
 
-  const target = normalizeHeader(header);
-  const index = headers.findIndex((candidate) => normalizeHeader(candidate) === target);
-  return index >= 0 ? row[index]?.trim() ?? "" : "";
+/**
+ * Resolves mapped headers to column indexes once, instead of re-normalizing
+ * and scanning the header row for every cell of every transaction. Keeps
+ * cellFor's first-match semantics for duplicate normalized headers.
+ */
+function createCellReader(headers: string[]): CellReader {
+  const indexByNormalizedHeader = new Map<string, number>();
+  headers.forEach((header, index) => {
+    const normalized = normalizeHeader(header);
+    if (!indexByNormalizedHeader.has(normalized)) {
+      indexByNormalizedHeader.set(normalized, index);
+    }
+  });
+  const indexByMappedHeader = new Map<string, number>();
+
+  return (row, header) => {
+    if (!header) {
+      return "";
+    }
+
+    let index = indexByMappedHeader.get(header);
+    if (index === undefined) {
+      index = indexByNormalizedHeader.get(normalizeHeader(header)) ?? -1;
+      indexByMappedHeader.set(header, index);
+    }
+
+    return index >= 0 ? row[index]?.trim() ?? "" : "";
+  };
 }
 
-function readOptionalCell(row: string[], headers: string[], header: string | undefined): string {
-  return cellFor(row, headers, header).trim();
+function readOptionalCell(row: string[], readCell: CellReader, header: string | undefined): string {
+  return readCell(row, header).trim();
 }
 
-function parseDebitCredit(row: string[], headers: string[], mapping: ColumnMapping): { debit: number; credit: number } {
+function parseDebitCredit(row: string[], readCell: CellReader, mapping: ColumnMapping): { debit: number; credit: number } {
   if (mapping.amountMode === "signed_amount") {
-    const amount = parseOptionalAmount(cellFor(row, headers, mapping.amount));
+    const amount = parseOptionalAmount(readCell(row, mapping.amount));
     return amount >= 0 ? { debit: 0, credit: amount } : { debit: Math.abs(amount), credit: 0 };
   }
 
   if (mapping.amountMode === "money_in_money_out") {
     return {
-      debit: Math.abs(parseOptionalAmount(cellFor(row, headers, mapping.moneyOut))),
-      credit: Math.abs(parseOptionalAmount(cellFor(row, headers, mapping.moneyIn)))
+      debit: Math.abs(parseOptionalAmount(readCell(row, mapping.moneyOut))),
+      credit: Math.abs(parseOptionalAmount(readCell(row, mapping.moneyIn)))
     };
   }
 
   return {
-    debit: Math.abs(parseOptionalAmount(cellFor(row, headers, mapping.debit))),
-    credit: Math.abs(parseOptionalAmount(cellFor(row, headers, mapping.credit)))
+    debit: Math.abs(parseOptionalAmount(readCell(row, mapping.debit))),
+    credit: Math.abs(parseOptionalAmount(readCell(row, mapping.credit)))
   };
 }
 
